@@ -26,7 +26,7 @@ function renderLogin() {
 }// ===== Google Drive & Auth Config =====
 // ★★★ ここにGoogle Cloud Consoleで発行した「実際の」クライアントIDを貼り付けてください ★★★
 // 取得手順は同梱の README_GOOGLE_SETUP.md を参照してください
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = '677120184684-v9msbbdqeia11oggugf4od2osijkt1db.apps.googleusercontent.com';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const FILE_NAME = 'toeic600_progress_v1.json';
 
