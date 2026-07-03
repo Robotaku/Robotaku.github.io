@@ -26,7 +26,7 @@ function renderLogin() {
 }// ===== Google Drive & Auth Config =====
 // ★★★ ここにGoogle Cloud Consoleで発行した「実際の」クライアントIDを貼り付けてください ★★★
 // 取得手順は同梱の README_GOOGLE_SETUP.md を参照してください
-const GOOGLE_CLIENT_ID = '677120184684-2mfqpccae3ogipbquc65ge99tpign9i1.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const FILE_NAME = 'toeic600_progress_v1.json';
 
@@ -443,7 +443,8 @@ let vocabFlashList = [];
 
 const VOCAB_CATS = {
   all:'すべて', business:'ビジネス全般', office:'オフィス・事務', meeting:'会議',
-  travel:'出張・旅行', retail:'店舗・小売', manufacturing:'製造・物流', adj:'形容詞・副詞', verb:'動詞'
+  travel:'出張・旅行', retail:'店舗・小売', manufacturing:'製造・物流', adj:'形容詞・副詞', verb:'動詞',
+  finance:'財務・会計', it:'IT・技術', hr:'人事・採用', event:'イベント・式典', dining:'飲食・レストラン', construction:'建設・不動産'
 };
 function renderVocabHome(){
   const cats = Object.keys(VOCAB_CATS);
@@ -653,6 +654,17 @@ function startGrammarQuiz(cat){
 
 // ===== Listening Module =====
 let listenSpeed = 0.85;
+let currentAudioEl = null; // 高品質TTS再生中のAudioオブジェクト
+let ttsPlaying = false;
+
+// Vercelにデプロイしたプロキシ関数のベースURL。
+// デプロイ後に発行される実際のURLに書き換えてください（例: https://your-project.vercel.app）。
+// 空文字のままの場合は、ブラウザ標準の音声合成（Web Speech API）のみが使われます。
+const API_PROXY_BASE = '';
+
+function isProxyConfigured(){
+  return !!API_PROXY_BASE;
+}
 
 function renderListeningHome(){
   const p2 = LISTENING_DATA.filter(l=>l.part===2);
@@ -665,10 +677,10 @@ function renderListeningHome(){
   <div class="section-head">
     <p class="eyebrow">LISTENING — PART 2 / 3</p>
     <h2>リスニング問題</h2>
-    <p>音声合成（読み上げ）機能を使って出題します。再生速度の調整や繰り返し再生が可能です。スクリプト（台本）も確認できます。</p>
+    <p>${isProxyConfigured() ? '高品質な音声合成APIで読み上げます。' : '音声合成（読み上げ）機能を使って出題します。'}再生速度の調整や繰り返し再生が可能です。スクリプト（台本）も確認できます。</p>
   </div>
 
-  ${!synthOk ? `<div class="card" style="padding:16px; margin-bottom:20px; border-left:3px solid var(--red);"><b>このブラウザは音声合成に対応していない可能性があります。</b> Chrome等の最新ブラウザでの利用を推奨します。</div>` : ''}
+  ${!synthOk && !isProxyConfigured() ? `<div class="card" style="padding:16px; margin-bottom:20px; border-left:3px solid var(--red);"><b>このブラウザは音声合成に対応していない可能性があります。</b> Chrome等の最新ブラウザでの利用を推奨します。</div>` : ''}
 
   <div class="grid grid-2">
     <div class="card module-card" onclick="startListeningQuiz(2)">
@@ -702,13 +714,73 @@ function startListeningQuiz(part){
   navigate('quiz');
 }
 
-function speakText(text, rate){
-  if(!('speechSynthesis' in window)) return;
+// メインの読み上げ関数。
+// 1) Vercelプロキシ（API_PROXY_BASE）が設定されていれば、まずそちらの高品質TTSを試す
+// 2) 未設定、またはプロキシ呼び出しが失敗した場合は、ブラウザ標準のWeb Speech APIにフォールバック
+async function speakText(text, rate){
+  if(ttsPlaying) return; // 二重再生防止
+  const effectiveRate = rate || listenSpeed;
+
+  if(isProxyConfigured()){
+    const ok = await speakViaProxy(text, effectiveRate);
+    if(ok) return;
+    console.warn('Vercelプロキシ経由のTTSに失敗したため、ブラウザ標準の読み上げにフォールバックします。');
+  }
+  speakViaBrowser(text, effectiveRate);
+}
+
+async function speakViaProxy(text, rate){
+  ttsPlaying = true;
+  updatePlayButtonState();
+  try{
+    const res = await fetch(`${API_PROXY_BASE}/api/tts`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({text, rate})
+    });
+    if(!res.ok){
+      console.error('TTSプロキシ呼び出し失敗:', res.status, await res.text().catch(()=>'')); 
+      return false;
+    }
+    const data = await res.json();
+    if(!data.audioContent) return false;
+
+    if(currentAudioEl){ currentAudioEl.pause(); currentAudioEl = null; }
+    currentAudioEl = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+    await new Promise((resolve,reject)=>{
+      currentAudioEl.onended = resolve;
+      currentAudioEl.onerror = reject;
+      currentAudioEl.play().catch(reject);
+    });
+    return true;
+  }catch(e){
+    console.error('speakViaProxy error:', e);
+    return false;
+  }finally{
+    ttsPlaying = false;
+    updatePlayButtonState();
+  }
+}
+
+function speakViaBrowser(text, rate){
+  if(!('speechSynthesis' in window)){
+    console.warn('このブラウザはWeb Speech APIに対応していません。');
+    return;
+  }
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'en-US';
-  utter.rate = rate || listenSpeed;
+  utter.rate = rate;
+  ttsPlaying = true;
+  updatePlayButtonState();
+  utter.onend = () => { ttsPlaying = false; updatePlayButtonState(); };
+  utter.onerror = () => { ttsPlaying = false; updatePlayButtonState(); };
   window.speechSynthesis.speak(utter);
+}
+
+function updatePlayButtonState(){
+  const btn = document.getElementById('play-btn');
+  if(btn) btn.classList.toggle('playing', ttsPlaying);
 }
 
 function setListenSpeed(s){
@@ -786,7 +858,7 @@ function renderQuiz(){
       <span class="quiz-tag">${typeLabel}</span>
       <div class="quiz-question">${q.question}</div>
       <div class="audio-control">
-        <button class="play-btn" onclick="speakText(\`${q.audio.replace(/`/g,"'")}\`)"><i data-lucide="play"></i></button>
+        <button class="play-btn" id="play-btn" onclick="speakText(\`${q.audio.replace(/`/g,"'")}\`)"><i data-lucide="play"></i></button>
       </div>
       <div class="speed-controls">
         ${[0.7,0.85,1.0].map(s=>`<button class="speed-btn ${listenSpeed===s?'active':''}" onclick="setListenSpeed(${s})">${s}x</button>`).join('')}
