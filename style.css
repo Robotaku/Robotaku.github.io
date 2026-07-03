@@ -211,6 +211,8 @@
   }
   .play-btn:hover{transform:scale(1.05);}
   .play-btn:active{transform:scale(0.95);}
+  .play-btn.playing{background:var(--amber-500); color:var(--navy-900); animation:pulse 1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.6;}}
   .speed-controls{display:flex; gap:6px; justify-content:center; margin-bottom:8px;}
   .speed-btn{
     padding:4px 10px; border-radius:6px; border:1px solid var(--line); background:#fff;
