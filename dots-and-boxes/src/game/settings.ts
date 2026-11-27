@@ -9,7 +9,7 @@ export const PALETTE = [
   { id: 'blue', label: 'あお', hex: '#0072B2', text: '#ffffff' },
   { id: 'vermillion', label: 'あか', hex: '#D55E00', text: '#ffffff' },
   { id: 'green', label: 'みどり', hex: '#009E73', text: '#ffffff' },
-  { id: 'orange', label: 'きいろ', hex: '#E69F00', text: '#1a1a1a' },
+  { id: 'orange', label: 'オレンジ', hex: '#E69F00', text: '#1a1a1a' },
   { id: 'pink', label: 'ピンク', hex: '#CC79A7', text: '#1a1a1a' },
   { id: 'sky', label: 'みずいろ', hex: '#56B4E9', text: '#1a1a1a' },
 ] as const;
