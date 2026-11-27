@@ -1,4 +1,4 @@
-import { edgeEndpoints, getBoard } from '../game/board';
+import { edgeEndpoints, getBoard, nearestOpenEdge } from '../game/board';
 import { colorOf } from '../game/settings';
 import type { GameState } from '../game/types';
 
@@ -22,6 +22,8 @@ export interface BoardOptions {
 }
 
 const MARGIN = 0.55;
+/** タップ位置から、この距離(点の間隔=1)以内の線を引く */
+const HIT_DISTANCE = 0.4;
 
 /**
  * 盤面をSVGで描く。座標は「点の間隔 = 1」の単位。
@@ -91,20 +93,29 @@ export function boardSvg(state: GameState, opts: BoardOptions): SVGSVGElement {
     for (let c = 0; c < state.size; c++) svg.append(s('circle', { cx: c, cy: r, r: 0.085 }, 'dot'));
   }
 
-  // 当たり判定(最前面)
+  // 当たり判定: 透明な太い線(.edge-hit)はカーソルの形と見た目用。
+  // 実際に引く線は、タップ位置にいちばん近い未引きの線を選ぶ(点の近くで判定が重ならない)。
   if (opts.interactive && opts.onEdge) {
     const onEdge = opts.onEdge;
     for (let e = 0; e < board.edgeCount; e++) {
       if (state.edges[e] !== null) continue;
       const hit = drawLine(e, 'edge-hit');
-      // 丸い端だと点の周りで当たり判定が重なるため、端は平らにする
       hit.style.strokeLinecap = 'butt';
-      hit.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        onEdge(e);
-      });
       svg.append(hit);
     }
+    svg.addEventListener('click', (ev) => {
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return;
+      const pt = svg.createSVGPoint();
+      pt.x = ev.clientX;
+      pt.y = ev.clientY;
+      const p = pt.matrixTransform(ctm.inverse());
+      const edge = nearestOpenEdge(board, (e) => state.edges[e] === null, p.x, p.y, HIT_DISTANCE);
+      if (edge !== null) {
+        ev.stopPropagation();
+        onEdge(edge);
+      }
+    });
   }
   return svg;
 }

@@ -10,6 +10,7 @@ import {
   undoToHuman,
 } from '../src/game/rules';
 import { boxEdgeList, makeGame, play } from './helpers';
+import { defaultSettings } from '../src/game/settings';
 
 describe('applyMove', () => {
   it('四角が取れなければ次の席へ手番が移る', () => {
@@ -164,3 +165,23 @@ describe('undo', () => {
     expect(back.current).toBe(1);
   });
 });
+
+describe('createGame: 名前が空の席', () => {
+  it('自動名になり、頭文字は席番号になる(人間とBotは別々に数える)', () => {
+    const g = createGame(defaultSettings());
+    expect(g.players.map((p) => p.name)).toEqual(['プレイヤー1', 'プレイヤー2', 'Bot1']);
+    expect(g.players.map((p) => p.initial)).toEqual(['1', '2', '3']);
+  });
+
+  it('入力した名前はそのまま使い、頭文字は先頭の1文字になる', () => {
+    const d = defaultSettings();
+    const g = createGame({
+      ...d,
+      players: d.players.map((p, i) => (i === 0 ? { ...p, name: 'たろう' } : p)),
+    });
+    expect(g.players[0].name).toBe('たろう');
+    expect(g.players[0].initial).toBe('た');
+    expect(g.players[1].name).toBe('プレイヤー2'); // 空の席は自動名のまま
+  });
+});
+
