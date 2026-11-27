@@ -1,0 +1,962 @@
+/* ==========================================================================
+   追跡ゲーム: スタイル
+   モバイル縦画面(360〜420px)を優先。タップ対象は最小44px、本文16px以上。
+   ========================================================================== */
+
+:root {
+  --ink: #263238;
+  --ink-soft: #546e7a;
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --line: #cfd8dc;
+  --line-strong: #90a4ae;
+  --accent: #1565c0;
+  --accent-soft: #e3f2fd;
+  --taxi: #e0a800;
+  --bus: #2e9e4f;
+  --metro: #d32f2f;
+  --reveal: #6a1b9a;
+  --danger: #c62828;
+  --danger-soft: #ffebee;
+  --tap: 44px;
+  --radius: 12px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI",
+    "Meiryo", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
+}
+
+#app {
+  min-width: 0;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+h1 {
+  font-size: 28px;
+  line-height: 1.3;
+  margin: 8px 0 8px;
+  color: var(--ink);
+}
+
+h2 {
+  font-size: 18px;
+  line-height: 1.4;
+  margin: 0 0 12px;
+  color: var(--ink);
+}
+
+h3 {
+  font-size: 17px;
+  margin: 14px 0 6px;
+  color: var(--ink);
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+small {
+  font-size: 14px;
+}
+
+ul {
+  margin: 0;
+  padding-left: 1.3em;
+}
+
+b {
+  font-weight: 700;
+}
+
+/* ---------- 画面の土台 ---------- */
+
+.screen {
+  width: 100%;
+  max-width: 760px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+}
+
+.screen > * + * {
+  margin-top: 12px;
+}
+
+.screen > .modal {
+  margin: 0;
+}
+
+/* ---------- ボタン・入力 ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 10px 16px;
+  border: 2px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.05s;
+}
+
+.btn:hover {
+  background: #eceff1;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn:focus-visible,
+input:focus-visible,
+select:focus-visible,
+.st:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn.primary:hover {
+  background: #0d47a1;
+  border-color: #0d47a1;
+}
+
+.btn.small {
+  min-height: var(--tap);
+  padding: 8px 12px;
+  font-size: 16px;
+}
+
+.btn.big {
+  min-height: 56px;
+  padding: 14px 24px;
+  font-size: 20px;
+}
+
+.btn.danger {
+  background: var(--card);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn.danger:hover {
+  background: var(--danger-soft);
+}
+
+.btn.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.btn.mode {
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+  padding: 10px 14px;
+  border-color: transparent;
+}
+
+.btn.mode small {
+  display: block;
+  font-size: 14px;
+  font-weight: 400;
+  opacity: 0.92;
+}
+
+.btn.mode.taxi {
+  background: var(--taxi);
+  color: var(--ink);
+}
+
+.btn.mode.bus {
+  background: var(--bus);
+  color: #fff;
+}
+
+.btn.mode.metro {
+  background: var(--metro);
+  color: #fff;
+}
+
+input[type="text"],
+select {
+  min-height: var(--tap);
+  padding: 8px 10px;
+  border: 2px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px; /* iOSの自動ズーム防止 */
+  max-width: 100%;
+}
+
+input[type="text"] {
+  width: 100%;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+/* ---------- 共通の部品 ---------- */
+
+.card,
+.panel {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(38, 50, 56, 0.12);
+  min-width: 0;
+}
+
+.panel h2 {
+  margin-bottom: 10px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.row > .btn {
+  flex: 1 1 auto;
+}
+
+.row.center {
+  justify-content: center;
+}
+
+.row.center > .btn {
+  flex: 1 1 100%;
+}
+
+.lead {
+  font-size: 16px;
+  color: var(--ink-soft);
+}
+
+.note {
+  font-size: 16px;
+  color: var(--ink-soft);
+}
+
+.errors {
+  list-style: none;
+  padding: 10px 12px;
+  margin: 0;
+  border-left: 4px solid var(--danger);
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.errors li + li {
+  margin-top: 4px;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 6px 0;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.check input {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 2px 0 0;
+}
+
+/* チップ(移動手段) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eceff1;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.chip.taxi {
+  background: var(--taxi);
+  color: #1a1a1a;
+}
+
+.chip.bus {
+  background: var(--bus);
+  color: #fff;
+}
+
+.chip.metro {
+  background: var(--metro);
+  color: #fff;
+}
+
+/* ---------- 設定画面 ---------- */
+
+.setup h1 {
+  margin-top: 4px;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.presets > span {
+  flex-basis: 100%;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.seats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+/* 狭い画面: 席番号と削除を1行目、名前を2行目、選択を3・4行目 */
+.seat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.seat-no {
+  grid-column: 1;
+  grid-row: 1;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.seat > .btn.danger {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+}
+
+.seat-name {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+}
+
+.seat select[data-field="kind"] {
+  grid-column: 1;
+  grid-row: 3;
+  width: 100%;
+}
+
+.seat select[data-field="role"] {
+  grid-column: 2;
+  grid-row: 3;
+  width: 100%;
+}
+
+.seat select[data-field="difficulty"] {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  width: 100%;
+}
+
+.seat-spacer {
+  display: none;
+}
+
+.setup .row.center {
+  margin-top: 8px;
+}
+
+/* ---------- 中継画面(盤面を含まない・全画面) ---------- */
+
+.screen.handoff {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: none;
+  margin: 0;
+  padding: 24px 20px;
+  background: var(--ink);
+  color: #fff;
+  text-align: center;
+}
+
+.screen.handoff > * + * {
+  margin-top: 0;
+}
+
+.handoff-box {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.handoff h1 {
+  margin: 0 0 24px;
+  font-size: clamp(26px, 8vw, 40px);
+  line-height: 1.4;
+  color: #fff;
+}
+
+.handoff-small {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.handoff .who {
+  display: inline-block;
+  margin: 8px 0;
+  font-size: clamp(44px, 15vw, 84px);
+  font-weight: 900;
+  line-height: 1.2;
+  color: #fff;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.handoff-role {
+  margin: 0 0 32px;
+  font-size: 20px;
+  line-height: 1.8;
+  color: #fff;
+}
+
+.handoff-role b {
+  font-size: 1.15em;
+}
+
+.handoff .btn.primary {
+  width: 100%;
+  background: #fff;
+  border-color: #fff;
+  color: var(--ink);
+}
+
+.handoff .btn.primary:hover {
+  background: #eceff1;
+  border-color: #eceff1;
+}
+
+/* ---------- 進行画面 ---------- */
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.topbar .round {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.topbar .round b {
+  font-size: 1.3em;
+  color: var(--accent);
+}
+
+.topbar .tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.topbar .tools .btn.small {
+  min-width: var(--tap);
+  padding: 8px 10px;
+}
+
+.action {
+  padding: 12px 14px;
+  border-left: 5px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: 0 1px 3px rgba(38, 50, 56, 0.12);
+  font-size: 16px;
+}
+
+.action > div:first-child {
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.action .row {
+  gap: 8px;
+}
+
+.action .row > .btn.mode {
+  flex: 1 1 130px;
+}
+
+.action .row > .btn:not(.mode) {
+  flex: 1 1 100%;
+}
+
+.action.wait {
+  border-left-color: var(--line-strong);
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+/* 盤面: 横・縦にスクロールでき、ピンチ拡大も可能 */
+.board-wrap {
+  position: relative;
+  max-height: 60vh;
+  max-height: 60dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y pinch-zoom;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.board-inner {
+  position: relative;
+  min-width: 100%;
+  max-width: none;
+}
+
+.board-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.legend .chip {
+  font-size: 15px;
+}
+
+/* ---------- 逃走者の移動ログ(24マス) ---------- */
+
+.log {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.log-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  padding: 16px 2px 4px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.log-r {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.log-body {
+  min-width: 0;
+}
+
+.log-cell.future {
+  background: #f5f7fa;
+  color: var(--line-strong);
+  font-weight: 400;
+}
+
+.log-cell.used.taxi {
+  background: #ffe082;
+  border-color: #e0a800;
+}
+
+.log-cell.used.bus {
+  background: #a5d6a7;
+  border-color: var(--bus);
+}
+
+.log-cell.used.metro {
+  background: #ef9a9a;
+  border-color: var(--metro);
+}
+
+.log-cell.reveal {
+  border-color: var(--reveal);
+  border-width: 3px;
+}
+
+.log-cell.now {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px #90caf9;
+}
+
+.log-cell.reveal.now {
+  border-color: var(--reveal);
+  box-shadow: 0 0 0 3px #90caf9;
+}
+
+/* ---------- プレイヤー一覧 ---------- */
+
+.pl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-left: 6px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fafbfc;
+  font-size: 16px;
+}
+
+.pl:last-child {
+  margin-bottom: 0;
+}
+
+.pl > div {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pl.fugitive {
+  border-left-color: var(--ink);
+  background: #eceff1;
+}
+
+.pl.chaser {
+  border-left-color: #90a4ae;
+}
+
+.pl.current {
+  background: var(--accent-soft);
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+.dot {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* ---------- 行動ログ ---------- */
+
+.feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+}
+
+.feed li {
+  padding: 8px 0;
+  border-bottom: 1px solid #eceff1;
+  overflow-wrap: anywhere;
+}
+
+.feed li:last-child {
+  border-bottom: 0;
+}
+
+/* ---------- 結果画面 ---------- */
+
+.result h1 {
+  font-size: clamp(26px, 7vw, 36px);
+  color: var(--accent);
+}
+
+.reason {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.route {
+  margin: 10px 0 0;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+/* ---------- モーダル(ルール) ---------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(38, 50, 56, 0.55);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.modal-body {
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 20px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  font-size: 16px;
+}
+
+.modal-body h2 {
+  font-size: 22px;
+}
+
+.modal-body h3 {
+  margin-top: 16px;
+}
+
+.modal-body ul {
+  padding-left: 1.3em;
+}
+
+.modal-body li + li {
+  margin-top: 6px;
+}
+
+.modal-body .btn {
+  width: 100%;
+  margin-top: 18px;
+}
+
+/* ---------- SVG 盤面 ---------- */
+
+.st {
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.st .st-body {
+  transition: fill 0.15s;
+}
+
+.st:hover .st-body {
+  fill: var(--accent-soft);
+}
+
+.st.target:hover .st-body {
+  fill: #fffde7;
+}
+
+.st .hit {
+  cursor: pointer;
+}
+
+.st-id {
+  pointer-events: none;
+  user-select: none;
+}
+
+.candidate,
+.trail,
+.start-mark,
+.reveal-mark,
+.chaser-token,
+.fugitive-token,
+.debug-token,
+.pip {
+  pointer-events: none;
+}
+
+.target-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: target-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes target-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+  50% {
+    transform: scale(1.22);
+    opacity: 0.3;
+  }
+}
+
+.trail {
+  animation: trail-march 1.2s linear infinite;
+}
+
+@keyframes trail-march {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .target-ring,
+  .trail {
+    animation: none;
+  }
+  .btn,
+  .st .st-body {
+    transition: none;
+  }
+}
+
+/* ---------- 幅に応じた調整 ---------- */
+
+/* 中くらいの幅: 席は1行に並べ、ログは12列 */
+@media (min-width: 600px) {
+  .screen {
+    padding: 24px 24px 48px;
+  }
+
+  h1 {
+    font-size: 32px;
+  }
+
+  .seat {
+    grid-template-columns: 56px minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+
+  .seat-no,
+  .seat-name,
+  .seat select,
+  .seat-spacer,
+  .seat > .btn.danger {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .seat-name {
+    width: 100%;
+  }
+
+  .seat-spacer {
+    display: block;
+  }
+
+  .seat > .btn.danger {
+    justify-self: auto;
+  }
+
+  .log {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .setup .row.center > .btn {
+    flex: 0 1 auto;
+  }
+
+  .action .row > .btn.mode,
+  .action .row > .btn:not(.mode) {
+    flex: 0 1 auto;
+  }
+}
+
+@media (min-width: 700px) {
+  .handoff h1 {
+    font-size: 40px;
+  }
+}

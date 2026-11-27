@@ -370,7 +370,7 @@ function setupHtml(): string {
         <button class="btn" data-act="add-bot" ${ui.seats.length >= MAX_SEATS ? 'disabled' : ''}>＋Botを追加</button>
       </div>
       ${errors.length ? `<ul class="errors">${errors.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-      <label class="check"><input type="checkbox" data-field="debug" ${ui.debug ? 'checked' : ''}/> 開発用デバッグ表示(逃走者の位置を画面とコンソールに出す。<b>遊ぶときはオフ</b>)</label>
+      <label class="check"><input type="checkbox" data-field="debug" ${ui.debug ? 'checked' : ''}/> <span>開発用デバッグ表示(逃走者の位置を画面とコンソールに出す。<b>遊ぶときはオフ</b>)</span></label>
     </section>
     <div class="row center">
       <button class="btn primary big" data-act="start" ${errors.length ? 'disabled' : ''}>ゲーム開始</button>
