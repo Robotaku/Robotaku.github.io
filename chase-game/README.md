@@ -16,10 +16,15 @@ cd chase-game
 npm install
 npm run dev      # 開発サーバーを起動
 npm test         # テスト(Vitest)を実行
-npm run build    # 型チェックのあと dist/ に静的ファイルを出力
+npm run build    # 型チェックのあと、公開用の静的ファイルを play/ に出力
 ```
 
-`npm run build` の出力 `dist/` は静的ファイルだけなので、サーバー用の実行環境は不要です。ただし、`index.html` をファイルとして直接開くとブラウザの制限で動かないことがあるため、任意の静的ホスティングに置くか、簡易サーバーで開いてください。
+## 公開(GitHub Pages)
+
+- 公開用にビルドした結果を `play/` にコミットしてあります。リポジトリを GitHub Pages で公開している場合、
+  `https://<ユーザー名>.github.io/chase-game/play/` で遊べます(サーバーは不要、静的ファイルだけです)。
+- **ソースを変更したら、`npm run build` をやり直して `play/` もコミットしてください。** `play/` はビルド結果なので、直接編集しません。
+- `play/index.html` をファイルとして直接開く(`file://`)と、ブラウザの制限で動かないことがあります。サーバー経由で開いてください。
 
 ## 遊び方
 
