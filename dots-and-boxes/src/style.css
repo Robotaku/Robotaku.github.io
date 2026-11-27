@@ -152,7 +152,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .rank.top { border: 2px solid var(--gold); background: linear-gradient(135deg, var(--card) 60%, var(--gold-soft)); box-shadow: 0 4px 14px var(--gold-shadow); }
 .rank.top .rank-pos { color: var(--gold-ink); }
 .rank-pos { width: 2.6em; font-weight: 800; }
-.rank-name { flex: 1; font-weight: 600; }
+.rank-name { flex: 1; min-width: 0; font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
 .rank-name small { margin-left: 4px; color: var(--muted); font-weight: 500; }
 .rank-score { font-size: 1.3rem; font-weight: 800; }
 .result-actions { display: flex; flex-direction: column; gap: 10px; }
@@ -208,6 +208,13 @@ button:focus-visible,
   .result-title { font-size: 1.6rem; }
   .seat-badge { width: 36px; height: 36px; }
   .btn.big { font-size: 1.05rem; }
+}
+
+/* 十分に広い画面では、設定の席行を従来どおり1行に収める */
+@media (min-width: 480px) {
+  .seat-top { flex-wrap: nowrap; }
+  .seat-name { flex: 1 1 auto; }
+  .seat-top .icon-btn { margin-left: 0; }
 }
 
 /* 動きを減らす設定のとき、アニメーションと遷移を止める */
