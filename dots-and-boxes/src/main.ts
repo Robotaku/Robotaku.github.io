@@ -1,6 +1,6 @@
 import { chooseMove } from './game/bot';
 import { applyMove, createGame, undoToHuman, canUndo } from './game/rules';
-import { loadSettings, saveSettings } from './game/settings';
+import { loadSettings, sanitizeSettings, saveSettings } from './game/settings';
 import type { BotSpeed, GameState, Settings } from './game/types';
 import { renderPlay } from './ui/play';
 import { renderResult } from './ui/result';
@@ -41,7 +41,8 @@ function showSetup(): void {
       saveSettings(storage, settings);
     },
     onStart: (s) => {
-      settings = s;
+      // 名前が空などの入力を補正してから始める
+      settings = sanitizeSettings(s);
       saveSettings(storage, settings);
       startGame();
     },

@@ -34,11 +34,13 @@ export function renderPlay(root: HTMLElement, state: GameState, handlers: PlayHa
     el(
       'div',
       { class: 'turn-text' },
-      el('div', { class: 'turn-name' }, `${me.name}${isBot ? '(Bot)' : ''}の番`),
+      el('div', { class: 'turn-name' }, state.finished ? '全部の線が引かれました' : `${me.name}${isBot ? '(Bot)' : ''}の番`),
       el(
         'div',
         { class: 'turn-sub' },
-        isBot
+        state.finished
+          ? 'ゲーム終了! 結果を表示します'
+          : isBot
           ? 'Botが考え中…(画面タップで早送り)'
           : bonus
             ? '四角をゲット! もう1本引けます'

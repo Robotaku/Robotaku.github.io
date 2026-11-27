@@ -97,6 +97,8 @@ export function boardSvg(state: GameState, opts: BoardOptions): SVGSVGElement {
     for (let e = 0; e < board.edgeCount; e++) {
       if (state.edges[e] !== null) continue;
       const hit = drawLine(e, 'edge-hit');
+      // 丸い端だと点の周りで当たり判定が重なるため、端は平らにする
+      hit.style.strokeLinecap = 'butt';
       hit.addEventListener('click', (ev) => {
         ev.stopPropagation();
         onEdge(e);
