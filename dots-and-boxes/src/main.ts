@@ -128,3 +128,12 @@ const handlers = {
 };
 
 showSetup();
+
+// 本番(公開用ビルド)のときだけ、オフラインで遊べるようにService Workerを登録する
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {
+      // 登録できなくても、オンラインでは普通に遊べる
+    });
+  });
+}
