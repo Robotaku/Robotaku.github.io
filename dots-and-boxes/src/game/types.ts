@@ -1,7 +1,8 @@
 // ゲームの型定義(UIに依存しない)
 
-/** 点の数(1辺)。3→四角4個 / 4→四角9個 / 5→四角16個 */
-export type BoardSize = 3 | 4 | 5;
+/** 選べる盤面の点の数(1辺)。四角は (点の数-1)² 個: 4 / 9 / 16 / 25 / 49 / 81 */
+export const BOARD_SIZES = [3, 4, 5, 6, 8, 10] as const;
+export type BoardSize = (typeof BOARD_SIZES)[number];
 export type PlayerKind = 'human' | 'bot';
 export type BotLevel = 'easy' | 'normal' | 'strong';
 export type BotSpeed = 'normal' | 'fast' | 'instant';

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   STORAGE_KEY,
+  autoName,
   defaultSettings,
   loadSettings,
   newSeat,
@@ -73,5 +74,45 @@ describe('settings', () => {
     expect(new Set(initials).size).toBe(3);
     expect(initials[0]).toBe('A');
     expect(createGame({ ...defaultSettings(), players: cfg }).players.map((p) => p.initial)).toEqual(initials);
+  });
+
+  it('名前の初期値は空で、保存して読み込んでも空のまま', () => {
+    const d = defaultSettings();
+    expect(d.players.every((p) => p.name === '')).toBe(true);
+    expect(newSeat(d.players).name).toBe('');
+    const st = new MemStorage();
+    saveSettings(st, d);
+    expect(loadSettings(st).players.every((p) => p.name === '')).toBe(true);
+  });
+
+  it('入力した名前は前後の空白を除いて8文字まで保持される', () => {
+    const s = sanitizeSettings({
+      players: [
+        { name: '  たろう  ', colorId: 'blue', kind: 'human' },
+        { name: '123456789012', colorId: 'green', kind: 'bot' },
+      ],
+    });
+    expect(s.players.map((p) => p.name)).toEqual(['たろう', '12345678']);
+  });
+
+  it('6×6・8×8・10×10 を選べ、未知のサイズは4に戻る', () => {
+    for (const size of [3, 4, 5, 6, 8, 10]) expect(sanitizeSettings({ size }).size).toBe(size);
+    for (const size of [2, 7, 9, 11, '5']) expect(sanitizeSettings({ size }).size).toBe(4);
+  });
+
+  it('旧版(v1)の保存データは読まない', () => {
+    const st = new MemStorage();
+    st.setItem('dots-and-boxes:settings:v1', JSON.stringify({ ...defaultSettings(), size: 5 }));
+    expect(loadSettings(st)).toEqual(defaultSettings());
+  });
+
+  it('自動名は人間とBotを別々に数える', () => {
+    const cfg = [
+      { name: '', colorId: 'blue', kind: 'human' as const },
+      { name: '', colorId: 'green', kind: 'bot' as const },
+      { name: '', colorId: 'pink', kind: 'human' as const },
+      { name: '', colorId: 'sky', kind: 'bot' as const },
+    ];
+    expect(cfg.map((_, i) => autoName(cfg, i))).toEqual(['プレイヤー1', 'Bot1', 'プレイヤー2', 'Bot2']);
   });
 });

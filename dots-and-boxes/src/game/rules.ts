@@ -1,4 +1,5 @@
 import { getBoard } from './board';
+import { displayName } from './settings';
 import type { GameState, Player, PlayerConfig, Result, Settings } from './types';
 
 /** 席ごとの頭文字。名前の先頭1文字(大文字化)。空・重複なら席番号を使う */
@@ -16,7 +17,12 @@ export function assignInitials(configs: PlayerConfig[]): string[] {
 export function createGame(settings: Settings): GameState {
   const board = getBoard(settings.size);
   const initials = assignInitials(settings.players);
-  const players: Player[] = settings.players.map((p, i) => ({ ...p, initial: initials[i] }));
+  // 名前が空の席は自動名(プレイヤー1、Bot1…)にし、頭文字は席番号にする
+  const players: Player[] = settings.players.map((p, i) => ({
+    ...p,
+    name: displayName(settings.players, i),
+    initial: initials[i],
+  }));
   return {
     size: settings.size,
     players,

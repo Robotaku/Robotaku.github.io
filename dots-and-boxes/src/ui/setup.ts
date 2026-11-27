@@ -1,4 +1,5 @@
-import { MAX_SEATS, MIN_SEATS, PALETTE, colorOf, newSeat } from '../game/settings';
+import { MAX_SEATS, MIN_SEATS, PALETTE, autoName, colorOf, newSeat } from '../game/settings';
+import { BOARD_SIZES } from '../game/types';
 import type { BoardSize, BotLevel, BotSpeed, PlayerConfig, Settings } from '../game/types';
 import { clear, el } from './dom';
 
@@ -12,6 +13,7 @@ function segmented<T extends string | number>(
   options: { value: T; text: string; sub?: string }[],
   current: T,
   onPick: (v: T) => void,
+  wrap = false,
 ): HTMLElement {
   return el(
     'div',
@@ -19,7 +21,7 @@ function segmented<T extends string | number>(
     el('div', { class: 'field-label' }, label),
     el(
       'div',
-      { class: 'segmented', role: 'radiogroup', 'aria-label': label },
+      { class: `segmented${wrap ? ' wrap' : ''}`, role: 'radiogroup', 'aria-label': label },
       ...options.map((o) =>
         el(
           'button',
@@ -89,6 +91,7 @@ export function renderSetup(root: HTMLElement, initial: Settings, handlers: Setu
             type: 'text',
             value: p.name,
             maxLength: 8,
+            placeholder: autoName(settings.players, i),
             'aria-label': `席${i + 1}の名前`,
             onInput: (ev: Event) => {
               settings = setPlayer(i, { name: (ev.target as HTMLInputElement).value });
@@ -174,13 +177,14 @@ export function renderSetup(root: HTMLElement, initial: Settings, handlers: Setu
           el('h2', {}, 'ルール設定'),
           segmented<BoardSize>(
             '盤面サイズ',
-            [
-              { value: 3, text: '3×3', sub: '四角4個' },
-              { value: 4, text: '4×4', sub: '四角9個・標準' },
-              { value: 5, text: '5×5', sub: '四角16個' },
-            ],
+            BOARD_SIZES.map((n) => ({
+              value: n,
+              text: `${n}×${n}`,
+              sub: `四角${(n - 1) ** 2}個${n === 4 ? '・標準' : ''}${n >= 8 ? '・長め' : ''}`,
+            })),
             settings.size,
             (size) => update({ ...settings, size }),
+            true,
           ),
           hasBot
             ? segmented<BotLevel>(

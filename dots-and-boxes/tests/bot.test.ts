@@ -158,3 +158,21 @@ describe('Bot: つよい(終盤の全探索)', () => {
     expect(capturingMoves(threeSides()).length).toBeGreaterThan(0);
   });
 });
+
+describe('Bot: 大きい盤面', () => {
+  it.each([6, 8, 10] as const)('%i×%i でBotだけの対戦が最後まで終わる(各強さ)', (size) => {
+    for (const level of ['easy', 'normal', 'strong'] as BotLevel[]) {
+      let s = makeGame(size, ['bot', 'bot', 'bot']);
+      const rng = seeded(size * 13);
+      const edges = s.edges.length;
+      for (let i = 0; i < edges && !s.finished; i++) {
+        const move = chooseMove(s, level, rng);
+        expect(legalMoves(s)).toContain(move);
+        s = applyMove(s, move);
+      }
+      expect(s.finished).toBe(true);
+      expect(s.boxes.every((b) => b !== null)).toBe(true);
+    }
+  }, 60000);
+});
+

@@ -1,6 +1,7 @@
-import type { BoardSize, BotLevel, BotSpeed, PlayerConfig, Settings } from './types';
+import { BOARD_SIZES } from './types';
+import type { BotLevel, BotSpeed, PlayerConfig, Settings } from './types';
 
-export const STORAGE_KEY = 'dots-and-boxes:settings:v1';
+export const STORAGE_KEY = 'dots-and-boxes:settings:v2';
 export const MIN_SEATS = 2;
 export const MAX_SEATS = 6;
 
@@ -14,7 +15,20 @@ export const PALETTE = [
   { id: 'sky', label: 'みずいろ', hex: '#56B4E9', text: '#1a1a1a' },
 ] as const;
 
-export const DEFAULT_NAMES = ['アキ', 'ミナ', 'ユウ', 'レン', 'ソラ', 'ハル'];
+/**
+ * 名前が空の席の自動名。人間は「プレイヤー1」…、Botは「Bot1」…と、種類ごとに数える。
+ * 名前の初期値は空にしてあり、空のまま始めるとこの名前になる。
+ */
+export function autoName(configs: PlayerConfig[], index: number): string {
+  const kind = configs[index].kind;
+  const n = configs.slice(0, index + 1).filter((p) => p.kind === kind).length;
+  return kind === 'bot' ? `Bot${n}` : `プレイヤー${n}`;
+}
+
+/** 空の名前を自動名に置き換えた、表示用の名前 */
+export function displayName(configs: PlayerConfig[], index: number): string {
+  return configs[index].name.trim() || autoName(configs, index);
+}
 
 export const colorOf = (colorId: string) =>
   PALETTE.find((c) => c.id === colorId) ?? PALETTE[0];
@@ -23,9 +37,9 @@ export function defaultSettings(): Settings {
   return {
     size: 4,
     players: [
-      { name: DEFAULT_NAMES[0], colorId: PALETTE[0].id, kind: 'human' },
-      { name: DEFAULT_NAMES[1], colorId: PALETTE[1].id, kind: 'human' },
-      { name: DEFAULT_NAMES[2], colorId: PALETTE[2].id, kind: 'bot' },
+      { name: '', colorId: PALETTE[0].id, kind: 'human' },
+      { name: '', colorId: PALETTE[1].id, kind: 'human' },
+      { name: '', colorId: PALETTE[2].id, kind: 'bot' },
     ],
     botLevel: 'normal',
     botSpeed: 'normal',
@@ -36,10 +50,9 @@ export function defaultSettings(): Settings {
 export function newSeat(existing: PlayerConfig[], kind: PlayerConfig['kind'] = 'bot'): PlayerConfig {
   const usedColors = new Set(existing.map((p) => p.colorId));
   const color = PALETTE.find((c) => !usedColors.has(c.id)) ?? PALETTE[0];
-  return { name: DEFAULT_NAMES[existing.length % DEFAULT_NAMES.length], colorId: color.id, kind };
+  return { name: '', colorId: color.id, kind };
 }
 
-const SIZES: BoardSize[] = [3, 4, 5];
 const LEVELS: BotLevel[] = ['easy', 'normal', 'strong'];
 const SPEEDS: BotSpeed[] = ['normal', 'fast', 'instant'];
 
@@ -48,7 +61,7 @@ export function sanitizeSettings(input: unknown): Settings {
   const base = defaultSettings();
   if (typeof input !== 'object' || input === null) return base;
   const raw = input as Record<string, unknown>;
-  const size = SIZES.find((s) => s === raw.size) ?? base.size;
+  const size = BOARD_SIZES.find((s) => s === raw.size) ?? base.size;
   const botLevel = LEVELS.find((l) => l === raw.botLevel) ?? base.botLevel;
   const botSpeed = SPEEDS.find((s) => s === raw.botSpeed) ?? base.botSpeed;
 
@@ -57,11 +70,9 @@ export function sanitizeSettings(input: unknown): Settings {
     players = raw.players
       .slice(0, MAX_SEATS)
       .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
-      .map((p, i) => ({
-        name:
-          typeof p.name === 'string' && p.name.trim() !== ''
-            ? p.name.trim().slice(0, 8)
-            : DEFAULT_NAMES[i % DEFAULT_NAMES.length],
+      .map((p) => ({
+        // 名前は空のままにしておく(空なら開始時に自動名になる)
+        name: typeof p.name === 'string' ? p.name.trim().slice(0, 8) : '',
         colorId: PALETTE.some((c) => c.id === p.colorId) ? (p.colorId as string) : '',
         kind: p.kind === 'bot' ? 'bot' : 'human',
       }));

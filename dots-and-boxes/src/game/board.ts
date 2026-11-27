@@ -69,3 +69,31 @@ export function edgeEndpoints(
   const c = k % size;
   return { x1: c, y1: r, x2: c, y2: r + 1 };
 }
+
+/**
+ * 点(x,y)(点の間隔=1の座標)に最も近い「引ける線」を返す。maxDist より遠ければ null。
+ * 線の当たり判定が点の近くで重なっても、必ず近いほうの線が選ばれる。
+ */
+export function nearestOpenEdge(
+  board: Board,
+  isOpen: (edge: number) => boolean,
+  x: number,
+  y: number,
+  maxDist: number,
+): number | null {
+  let best: number | null = null;
+  let bestDist = maxDist;
+  for (let e = 0; e < board.edgeCount; e++) {
+    if (!isOpen(e)) continue;
+    const { x1, y1, x2, y2 } = edgeEndpoints(board, e);
+    // 線分までの距離(線は軸に平行なので、はみ出し分だけ補正する)
+    const dx = Math.max(Math.min(x1, x2) - x, 0, x - Math.max(x1, x2));
+    const dy = Math.max(Math.min(y1, y2) - y, 0, y - Math.max(y1, y2));
+    const d = Math.hypot(dx, dy);
+    if (d < bestDist) {
+      bestDist = d;
+      best = e;
+    }
+  }
+  return best;
+}
