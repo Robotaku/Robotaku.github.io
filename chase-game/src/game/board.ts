@@ -158,6 +158,10 @@ const edges: Edge[] = [
   { a: 8, b: 18, mode: 'metro' },
   { a: 18, b: 28, mode: 'metro' },
   { a: 28, b: 35, mode: 'metro' },
+  // 船(渡し船): ブラックチケットでしか通れない。背景の川を渡る
+  { a: 6, b: 17, mode: 'ferry' },
+  { a: 23, b: 34, mode: 'ferry' },
+  { a: 29, b: 45, mode: 'ferry' },
 ];
 
 const fugitiveStarts: number[] = [1, 10, 23, 41, 50];

@@ -20,6 +20,7 @@ export interface Ui {
   showRules: boolean;
   thinking: boolean;
   centerOn: number | null;
+  doubleArmed: boolean; // 逃走者が「2×カードを使う」を選んだ状態(次の1手目に宣言が付く)
 }
 
 /** Botが1手指すまでの待ち時間(ミリ秒)。何をしたか見えるように少し間を置く。 */
@@ -42,4 +43,5 @@ export const ui: Ui = {
   showRules: false,
   thinking: false,
   centerOn: null,
+  doubleArmed: false,
 };

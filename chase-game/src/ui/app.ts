@@ -12,7 +12,7 @@ import { chooseMove } from '../game/bot';
 import { MAX_SEATS, MIN_SEATS } from '../game/config';
 import { applyMove, createGame, legalMoves, validateSeats } from '../game/rules';
 import { MODE_LABEL } from '../game/types';
-import type { Difficulty, GameState, Mode, Role, SeatConfig } from '../game/types';
+import type { Difficulty, GameState, Move, Role, SeatConfig, TicketKind } from '../game/types';
 import { dispName } from './format';
 import { handoffHtml } from './screens/handoffScreen';
 import { playHtml } from './screens/playScreen';
@@ -39,6 +39,7 @@ function startGame(): void {
   ui.game = createGame(BOARD, ui.seats, Math.random);
   ui.holder = null;
   ui.selected = null;
+  ui.doubleArmed = false;
   ui.thinking = false;
   ui.feed = ['ゲーム開始! 逃走者から動きます。'];
   proceed();
@@ -72,20 +73,22 @@ function proceed(): void {
   render();
 }
 
-function describeMove(g: GameState, who: number, mode: Mode, to: number, revealed: boolean): string {
+function describeMove(g: GameState, who: number, mode: TicketKind, to: number, revealed: boolean): string {
   const p = g.players[who];
   if (p.role === 'fugitive') {
-    return `逃走者 ${dispName(g, who)}: ${MODE_LABEL[mode]}で移動${revealed ? `(位置公開! 駅${to})` : ''}`;
+    const how = mode === 'black' ? 'ブラックチケット(手段は秘密)' : MODE_LABEL[mode];
+    return `逃走者 ${dispName(g, who)}: ${how}で移動${revealed ? `(位置公開! 駅${to})` : ''}`;
   }
   return `追跡者${who} ${dispName(g, who)}: ${MODE_LABEL[mode]}で 駅${p.pos}→駅${to}`;
 }
 
-function commit(mv: { to: number; mode: Mode }): void {
+function commit(mv: Move): void {
   const g = ui.game!;
   const who = g.turn;
   const ng = applyMove(g, BOARD, mv);
   const revealed = ng.log.length > g.log.length && ng.log[ng.log.length - 1].revealedPos !== null;
   const text = describeMove(g, who, mv.mode, mv.to, revealed); // g は移動前なので players[who].pos が出発駅
+  if (mv.double) ui.feed.push(`R${g.round} 逃走者 ${dispName(g, who)}: 2×カードを使用! 続けて2回動きます`);
   ui.feed.push(`R${g.round} ${text}`);
   for (const ps of ng.passed.slice(g.passed.length)) ui.feed.push(`R${ps.round} 追跡者${ps.player} ${dispName(ng, ps.player)}: 動けないのでパス`);
   if (ng.winner) ui.feed.push(`終了: ${ng.winReason}`);
@@ -138,7 +141,9 @@ function onClick(e: Event): void {
     }
     case 'mode':
       if (ui.selected !== null) {
-        const mv = { to: ui.selected, mode: btn.dataset.mode as Mode };
+        const mv: Move = { to: ui.selected, mode: btn.dataset.mode as TicketKind };
+        if (ui.doubleArmed) mv.double = true; // 2×カードの宣言は、続けて動く1手目に付く
+        ui.doubleArmed = false;
         ui.selected = null;
         commit(mv);
         proceed();
@@ -146,6 +151,9 @@ function onClick(e: Event): void {
       return;
     case 'cancel':
       ui.selected = null;
+      break;
+    case 'double':
+      ui.doubleArmed = !ui.doubleArmed;
       break;
     case 'rules':
       ui.showRules = !ui.showRules;

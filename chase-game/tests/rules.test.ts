@@ -99,8 +99,8 @@ describe('legalMoves / applyMove', () => {
     let g = game();
     g.maxRounds = 2;
     g = withPos(g, 1, [50]);
-    g.players[0].tickets = { taxi: 99, bus: 99, metro: 99 };
-    g.players[1].tickets = { taxi: 99, bus: 99, metro: 99 };
+    g.players[0].tickets = { taxi: 99, bus: 99, metro: 99, black: 0 };
+    g.players[1].tickets = { taxi: 99, bus: 99, metro: 99, black: 0 };
     let guard = 0;
     while (!g.winner && guard++ < 50) {
       const lm = legalMoves(g, BOARD, g.turn).filter((m) => g.turn === 0 || m.to !== g.players[0].pos);
@@ -120,24 +120,27 @@ describe('legalMoves / applyMove', () => {
   });
   it('追跡者が全員チケット切れなら逃走者の勝ち', () => {
     const g0 = withPos(game(), 1, [50]);
-    g0.players[1].tickets = { taxi: 0, bus: 0, metro: 0 };
+    g0.players[1].tickets = { taxi: 0, bus: 0, metro: 0, black: 0 };
     const g = applyMove(g0, BOARD, legalMoves(g0, BOARD, 0)[0]);
     expect(g.winner).toBe('fugitive');
     expect(g.winReason).toContain('動けなく');
   });
   it('動けない追跡者は自動でパスされ、他の追跡者が動く', () => {
     const g0 = withPos(game([seat('fugitive'), seat('chaser'), seat('chaser')]), 1, [50, 46]);
-    g0.players[1].tickets = { taxi: 0, bus: 0, metro: 0 };
+    g0.players[1].tickets = { taxi: 0, bus: 0, metro: 0, black: 0 };
     const g = applyMove(g0, BOARD, legalMoves(g0, BOARD, 0)[0]);
     expect(g.winner).toBeNull();
     expect(g.turn).toBe(2);
     expect(g.passed).toEqual([{ round: 1, player: 1 }]);
   });
   it('逃走者が動けなければ追跡者の勝ち', () => {
-    const g0 = withPos(game(), 1, [50]);
-    g0.players[0].tickets = { taxi: 0, bus: 0, metro: 0 };
-    const g = applyMove({ ...g0, turn: 1 }, BOARD, { to: nb(50, 'taxi')[0], mode: 'taxi' });
+    // 逃走者は駅1(タクシー路線のみ)。チケットは0。追跡者が使ったバス券が渡っても、駅1ではバスが使えず動けない
+    const g0 = withPos(game(), 1, [11]);
+    g0.players[0].tickets = { taxi: 0, bus: 0, metro: 0, black: 0 };
+    const g = applyMove({ ...g0, turn: 1 }, BOARD, { to: 12, mode: 'bus' });
+    expect(g.players[0].tickets.bus).toBe(1); // 受け渡しの確認
     expect(g.winner).toBe('chaser');
+    expect(g.winReason).toContain('動ける場所');
   });
 });
 
@@ -146,15 +149,16 @@ describe('publicState(隠し情報)', () => {
     const g = game();
     const p = publicState(g);
     expect(p.players[0].pos).toBe(-1);
-    expect(p.players[0].tickets).toEqual({ taxi: -1, bus: -1, metro: -1 });
+    expect(p.players[0].tickets).toEqual({ taxi: -1, bus: -1, metro: -1, black: -1 });
+    expect(p.players[0].doubleCards).toBe(-1);
     expect(p.fugitiveTrail).toEqual([]);
-    expect(JSON.stringify(p)).not.toContain(`"pos":${g.players[0].pos},"tickets":{"taxi":24`);
+    expect(JSON.stringify(p)).not.toContain(`"pos":${g.players[0].pos},"tickets":{"taxi":6`);
   });
   it('公開ログは手段のみで、公開ラウンド以外は位置を含まない', () => {
     let g = game();
     g = applyMove(g, BOARD, legalMoves(g, BOARD, 0)[0]);
     const p = publicState(g);
     expect(p.log[0].revealedPos).toBeNull();
-    expect(Object.keys(p.log[0]).sort()).toEqual(['mode', 'revealedPos', 'round']);
+    expect(Object.keys(p.log[0]).sort()).toEqual(['double', 'mode', 'revealedPos', 'round', 'turn']);
   });
 });

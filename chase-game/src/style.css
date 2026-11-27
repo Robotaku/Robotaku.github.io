@@ -960,3 +960,108 @@ input[type="checkbox"] {
     font-size: 40px;
   }
 }
+
+/* ---------- ブラック・2×カード・船(追加分) ---------- */
+
+/* チップ: ブラック・2×カード・船 */
+.chip.black {
+  background: #212121;
+  color: #fff;
+}
+
+.chip.dbl {
+  background: var(--reveal);
+  color: #fff;
+}
+
+.chip.ferry {
+  background: #fff;
+  color: #263238;
+  border: 2px dashed #263238;
+  padding: 2px 8px;
+}
+
+/* 移動手段ボタン: ブラック */
+.btn.mode.black {
+  background: #212121;
+  color: #fff;
+}
+
+.btn.mode.black small {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 2×カードのボタン(通常: 紫の枠・紫文字 / on: 紫背景・白文字) */
+.btn.double {
+  min-height: var(--tap);
+  border-color: var(--reveal);
+  background: var(--card);
+  color: var(--reveal);
+}
+
+.btn.double:hover {
+  background: #f3e5f5;
+}
+
+.btn.double.on {
+  background: var(--reveal);
+  border-color: var(--reveal);
+  color: #fff;
+}
+
+.btn.double.on:hover {
+  background: #7b1fa2;
+  border-color: #7b1fa2;
+}
+
+/* 2×カードの2手目などの注意書き */
+.double-note {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 2px solid var(--reveal);
+  border-radius: 8px;
+  background: #f3e5f5;
+  color: var(--reveal);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+/* 行動欄のボタン列: 折り返したときの縦の間隔 */
+.action .row {
+  row-gap: 10px;
+}
+
+.action .row + .row {
+  margin-top: 10px;
+}
+
+/* 移動ログ: ブラックで使った手 */
+.log-cell.used.black {
+  background: #212121;
+  border-color: #000;
+  color: #fff;
+}
+
+.log-cell.used.black .log-r {
+  color: #fff;
+}
+
+/* 移動ログ: 2×カードの手(紫の下線) */
+.log-cell.dbl {
+  border-bottom: 4px solid var(--reveal);
+}
+
+/* 移動ログ: 2×の印 */
+.dbl-mark {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--reveal);
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 14px;
+  vertical-align: 1px;
+}

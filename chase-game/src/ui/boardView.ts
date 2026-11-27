@@ -5,11 +5,11 @@
  * 隠し情報: pub には publicState() を通した状態を渡す。逃走者の駒は
  * secretFugitivePos が渡されたとき(=逃走者本人の手番)にだけ描く。
  */
-import type { Board, GameState, Mode } from '../game/types';
+import type { Board, EdgeMode, GameState, Mode } from '../game/types';
 import { backgroundSvg } from './boardBackground';
 
 export const CHASER_COLORS = ['#1e88e5', '#8e24aa', '#00897b', '#f4511e', '#6d4c41', '#3949ab', '#7cb342'];
-const MODE_COLOR: Record<Mode, string> = { taxi: '#d9961a', bus: '#2e9e4f', metro: '#d32f2f' };
+const MODE_COLOR: Record<EdgeMode, string> = { taxi: '#d9961a', bus: '#2e9e4f', metro: '#d32f2f', ferry: '#263238' };
 const MODE_OFFSET: Record<Mode, number> = { taxi: 0, bus: 5, metro: -5 };
 const MODE_WIDTH: Record<Mode, number> = { taxi: 2.5, bus: 3.5, metro: 4.5 };
 
@@ -32,7 +32,7 @@ export interface BoardViewOptions {
 export function renderBoardSvg(o: BoardViewOptions): string {
   const { board, pub } = o;
   const pos = new Map(board.stations.map((s) => [s.id, s]));
-  const modesAt = new Map<number, Set<Mode>>();
+  const modesAt = new Map<number, Set<EdgeMode>>();
   for (const e of board.edges) {
     for (const id of [e.a, e.b]) {
       if (!modesAt.has(id)) modesAt.set(id, new Set());
@@ -59,6 +59,16 @@ export function renderBoardSvg(o: BoardViewOptions): string {
     }
   }
 
+  // 船(渡し船): ブラックチケットでしか通れない。川を渡る黒い点線
+  for (const e of board.edges.filter((x) => x.mode === 'ferry')) {
+    const a = pos.get(e.a)!;
+    const b = pos.get(e.b)!;
+    parts.push(
+      `<line class="edge edge-ferry" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${MODE_COLOR.ferry}" stroke-width="4" stroke-dasharray="2 8" stroke-linecap="round"/>`,
+      `<g class="ferry-label" pointer-events="none"><circle cx="${(a.x + b.x) / 2}" cy="${(a.y + b.y) / 2}" r="12" fill="#fff" stroke="${MODE_COLOR.ferry}" stroke-width="2"/><text x="${(a.x + b.x) / 2}" y="${(a.y + b.y) / 2 + 4}" text-anchor="middle" font-size="12" font-weight="700" fill="${MODE_COLOR.ferry}">船</text></g>`,
+    );
+  }
+
   // 可能性のある駅(ヒント)
   for (const id of o.candidates ?? []) {
     const s = pos.get(id)!;
@@ -82,8 +92,8 @@ export function renderBoardSvg(o: BoardViewOptions): string {
     parts.push(`<circle class="st-body" cx="${s.x}" cy="${s.y}" r="15" fill="#fff" stroke="${o.selected === s.id ? '#d50000' : '#263238'}" stroke-width="${o.selected === s.id ? 4 : 2}"/>`);
     parts.push(`<text class="st-id" x="${s.x}" y="${s.y + 5}" text-anchor="middle" font-size="14" font-weight="700" fill="#263238">${s.id}</text>`);
     // 使える手段の目印(下に小さな四角)
-    const ms = [...(modesAt.get(s.id) ?? [])].sort();
-    const order: Mode[] = (['taxi', 'bus', 'metro'] as Mode[]).filter((m) => ms.includes(m));
+    const ms = [...(modesAt.get(s.id) ?? [])];
+    const order: EdgeMode[] = (['taxi', 'bus', 'metro', 'ferry'] as EdgeMode[]).filter((m) => ms.includes(m));
     order.forEach((m, i) => {
       const x = s.x - (order.length * 7) / 2 + i * 7 + 0.5;
       parts.push(`<rect class="pip pip-${m}" x="${x}" y="${s.y + 17}" width="6" height="6" rx="1" fill="${MODE_COLOR[m]}"/>`);

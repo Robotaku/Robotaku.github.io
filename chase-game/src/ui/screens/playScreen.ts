@@ -7,7 +7,7 @@
  */
 import { BOARD } from '../../game/board';
 import { possibleFugitiveStations } from '../../game/bot';
-import { legalMoves, publicState } from '../../game/rules';
+import { canDouble, legalMoves, publicState } from '../../game/rules';
 import { MODE_LABEL } from '../../game/types';
 import type { GameState } from '../../game/types';
 import { renderBoardSvg } from '../boardView';
@@ -21,8 +21,9 @@ export function logHtml(g: GameState): string {
     const e = g.log[r - 1];
     const reveal = g.revealRounds.includes(r);
     const body = e ? `${SHORT[e.mode]}${e.revealedPos !== null ? `<br>駅${e.revealedPos}` : ''}` : reveal ? '公開' : '・';
+    // 手数(逃走者の記録の番号)で並べる。2×カードの手には「2×」の印、いま記録される手には太枠
     cells.push(
-      `<div class="log-cell ${e ? `used ${e.mode}` : 'future'}${reveal ? ' reveal' : ''}${r === g.round ? ' now' : ''}"><span class="log-r">${r}</span><span class="log-body">${body}</span></div>`,
+      `<div class="log-cell ${e ? `used ${e.mode}` : 'future'}${reveal ? ' reveal' : ''}${e?.double ? ' dbl' : ''}${r === g.log.length + 1 ? ' now' : ''}"><span class="log-r">${r}${e?.double ? '<i class="dbl-mark">2×</i>' : ''}</span><span class="log-body">${body}</span></div>`,
     );
   }
   return `<div class="log">${cells.join('')}</div>`;
@@ -33,7 +34,9 @@ function playersHtml(g: GameState, secret: boolean): string {
       const cur = i === g.turn ? ' current' : '';
       if (p.role === 'fugitive') {
         return `<div class="pl fugitive${cur}"><b>逃走者 ${dispName(g, i)}</b>${
-          secret ? `<span> 現在地: 駅${p.pos}</span><div>${chipsHtml(p.tickets)}</div>` : '<span> 位置・チケット: 非公開</span>'
+          secret
+            ? `<span> 現在地: 駅${p.pos}</span><div>${chipsHtml(p.tickets, true)}<span class="chip dbl">2×カード ${p.doubleCards}</span></div>`
+            : '<span> 位置・チケット: 非公開</span>'
         }</div>`;
       }
       return `<div class="pl chaser${cur}"><span class="dot" style="background:${chaserColor(i)}">${i}</span><b>${dispName(g, i)}</b><span> 駅${p.pos}</span><div>${chipsHtml(p.tickets)}</div></div>`;
@@ -63,17 +66,28 @@ export function playHtml(): string {
     action = `<div class="action wait">${dispName(g, g.turn)} が考えています…</div>`;
   } else if (ui.selected !== null) {
     const opts = moves.filter((m) => m.to === ui.selected);
-    action = `<div class="action"><div>駅${ui.selected}へ、どの手段で移動しますか?</div><div class="row">${opts
-      .map((m) => `<button class="btn mode ${m.mode}" data-act="mode" data-mode="${m.mode}">${MODE_LABEL[m.mode]}で移動<small>残り${cur.tickets[m.mode]}</small></button>`)
+    const armed = ui.doubleArmed ? '【2×カード】' : '';
+    action = `<div class="action"><div>${armed}駅${ui.selected}へ、どの手段で移動しますか?</div><div class="row">${opts
+      .map((m) =>
+        m.mode === 'black'
+          ? `<button class="btn mode black" data-act="mode" data-mode="black">ブラックチケットで移動<small>手段を隠す・船にも乗れる / 残り${cur.tickets.black}</small></button>`
+          : `<button class="btn mode ${m.mode}" data-act="mode" data-mode="${m.mode}">${MODE_LABEL[m.mode]}で移動<small>残り${cur.tickets[m.mode]}</small></button>`,
+      )
       .join('')}<button class="btn" data-act="cancel">やめる</button></div></div>`;
   } else {
-    action = `<div class="action"><b>${esc(cur.name)}さん(${roleLabel(cur.role)})の番です。</b> 光っている駅をタップして移動先を選びます。</div>`;
+    // 2×カードは逃走者本人の画面でだけ出す(残り枚数が秘密のため)
+    let extra = '';
+    if (secret && g.pendingDouble) extra = '<div class="double-note">2×カードの2手目です。もう一度、移動先を選んでください。</div>';
+    else if (secret && canDouble(g)) {
+      extra = `<div class="row"><button class="btn small double${ui.doubleArmed ? ' on' : ''}" data-act="double">2×カード${ui.doubleArmed ? 'を使う(取り消す)' : 'を使う'}(残り${cur.doubleCards})</button></div>`;
+    }
+    action = `<div class="action"><b>${esc(cur.name)}さん(${roleLabel(cur.role)})の番です。</b> 光っている駅をタップして移動先を選びます。${extra}</div>`;
   }
-  const nextReveal = g.revealRounds.find((r) => r >= g.round);
+  const nextReveal = g.revealRounds.find((r) => r > g.log.length);
   return `
   <main class="screen play">
     <header class="topbar">
-      <div class="round">ラウンド <b>${g.round}</b> / ${g.maxRounds}${nextReveal ? ` <small>(次の位置公開: R${nextReveal})</small>` : ''}</div>
+      <div class="round">記録 <b>${g.log.length}</b> / ${g.maxRounds}手 <small>(ラウンド${g.round}${nextReveal ? ` / 次の位置公開: ${nextReveal}手目` : ''})</small></div>
       <div class="tools">
         ${myTurn && cur.role === 'chaser' ? `<button class="btn small${ui.hint ? ' on' : ''}" data-act="hint">推理ヒント${ui.hint ? 'ON' : 'OFF'}</button>` : ''}
         <button class="btn small" data-act="zoom-out" aria-label="縮小">－</button>
@@ -83,7 +97,7 @@ export function playHtml(): string {
     </header>
     ${action}
     <div class="board-wrap"><div class="board-inner" style="width:${ui.zoom * 100}%">${svg}</div></div>
-    <div class="legend"><span class="chip taxi">タクシー(黄)</span><span class="chip bus">バス(緑)</span><span class="chip metro">地下鉄(赤)</span><span class="chip">紫◇=最後の公開位置</span><span class="chip">★=逃走者の開始候補</span></div>
+    <div class="legend"><span class="chip taxi">タクシー(黄)</span><span class="chip bus">バス(緑)</span><span class="chip metro">地下鉄(赤)</span><span class="chip ferry">船(黒の点線)=ブラックのみ</span><span class="chip">紫◇=最後の公開位置</span><span class="chip">★=逃走者の開始候補</span></div>
     <section class="panel"><h2>逃走者の移動(公開情報)</h2>${logHtml(pub)}</section>
     <section class="panel"><h2>プレイヤー</h2>${playersHtml(secret ? g : pub, secret)}</section>
     <section class="panel"><h2>行動ログ</h2><ul class="feed">${ui.feed

@@ -8,12 +8,15 @@
  *
  * 勝敗判定は settle() にまとめてある。数値設定は config.ts。
  */
-import type { Board, GameState, Move, Mode, Player, SeatConfig, Tickets } from './types';
+import type { Board, EdgeMode, GameState, Move, Player, SeatConfig, Tickets } from './types';
 import { MODES } from './types';
-import { CHASER_TICKETS, FUGITIVE_TICKETS, MAX_ROUNDS, MAX_SEATS, MIN_SEATS, REVEAL_ROUNDS } from './config';
+import {
+  CHASER_TICKETS, FUGITIVE_TICKETS, MAX_ROUNDS, MAX_SEATS, MIN_SEATS, REVEAL_ROUNDS,
+  TRANSFER_TICKETS, blackTicketsFor, doubleCardsFor,
+} from './config';
 import { type Rng, shuffle, pick } from './rng';
 
-export interface Neighbor { to: number; mode: Mode }
+export interface Neighbor { to: number; mode: EdgeMode }
 
 const adjCache = new WeakMap<Board, Neighbor[][]>();
 
@@ -51,18 +54,20 @@ export function createGame(board: Board, seats: readonly SeatConfig[], rng: Rng)
   const fSeat = seats.find((s) => s.role === 'fugitive')!;
   const cSeats = seats.filter((s) => s.role === 'chaser');
   const starts = shuffle(board.chaserStarts, rng).slice(0, cSeats.length);
-  const mk = (s: SeatConfig, pos: number, tickets: Tickets, fallback: string): Player => ({
+  const mk = (s: SeatConfig, pos: number, tickets: Tickets, doubleCards: number, fallback: string): Player => ({
     name: s.name.trim() || fallback,
     isBot: s.isBot,
     role: s.role,
     difficulty: s.difficulty,
     pos,
     tickets: { ...tickets },
+    doubleCards,
   });
+  const n = cSeats.length;
   const fPos = pick(board.fugitiveStarts, rng);
   const players = [
-    mk(fSeat, fPos, FUGITIVE_TICKETS, '逃走者'),
-    ...cSeats.map((s, i) => mk(s, starts[i], CHASER_TICKETS, `追跡者${i + 1}`)),
+    mk(fSeat, fPos, { ...FUGITIVE_TICKETS, black: blackTicketsFor(n) }, doubleCardsFor(n), '逃走者'),
+    ...cSeats.map((s, i) => mk(s, starts[i], CHASER_TICKETS, 0, `追跡者${i + 1}`)),
   ];
   const state: GameState = {
     round: 1,
@@ -70,6 +75,7 @@ export function createGame(board: Board, seats: readonly SeatConfig[], rng: Rng)
     revealRounds: [...REVEAL_ROUNDS],
     players,
     turn: 0,
+    pendingDouble: false,
     log: [],
     chaserMoves: [],
     passed: [],
@@ -83,7 +89,11 @@ export function createGame(board: Board, seats: readonly SeatConfig[], rng: Rng)
   return state;
 }
 
-/** 手番プレイヤーが選べる合法手(同じ(駅,手段)は1つ)。逃走者の位置には依存しない。 */
+/**
+ * 手番プレイヤーが選べる合法手(同じ(駅,チケット)は1つ)。逃走者の位置には依存しない。
+ * ・通常の路線は、その手段のチケットが残っていれば使える。
+ * ・ブラックチケットは、逃走者だけがどの路線(船を含む)にも使える。船はブラックでしか通れない。
+ */
 export function legalMoves(state: GameState, board: Board, idx: number): Move[] {
   const p = state.players[idx];
   const blocked = new Set<number>();
@@ -92,15 +102,29 @@ export function legalMoves(state: GameState, board: Board, idx: number): Move[] 
   });
   const seen = new Set<string>();
   const out: Move[] = [];
-  for (const n of adjacency(board)[p.pos]) {
-    if (p.tickets[n.mode] <= 0) continue;
-    if (blocked.has(n.to)) continue;
-    const key = `${n.to}:${n.mode}`;
-    if (seen.has(key)) continue;
+  const add = (to: number, mode: Move['mode']) => {
+    const key = `${to}:${mode}`;
+    if (seen.has(key)) return;
     seen.add(key);
-    out.push({ to: n.to, mode: n.mode });
+    out.push({ to, mode });
+  };
+  for (const n of adjacency(board)[p.pos]) {
+    if (blocked.has(n.to)) continue;
+    if (n.mode !== 'ferry' && p.tickets[n.mode] > 0) add(n.to, n.mode);
+    if (p.role === 'fugitive' && p.tickets.black > 0) add(n.to, 'black');
   }
   return out;
+}
+
+/** 逃走者がいま2×カードを宣言できるか(残り枚数があり、記録欄に2手分の空きがある) */
+export function canDouble(state: GameState): boolean {
+  return (
+    !state.winner &&
+    state.turn === 0 &&
+    !state.pendingDouble &&
+    state.players[0].doubleCards > 0 &&
+    state.log.length <= state.maxRounds - 2
+  );
 }
 
 function advance(s: GameState): void {
@@ -114,9 +138,9 @@ function advance(s: GameState): void {
 /** 勝敗判定と、動けない追跡者の自動パスを行う(破壊的)。 */
 function settle(s: GameState, board: Board): void {
   while (!s.winner) {
-    if (s.round > s.maxRounds) {
+    if (s.turn === 0 && !s.pendingDouble && s.log.length >= s.maxRounds) {
       s.winner = 'fugitive';
-      s.winReason = `${s.maxRounds}ラウンド逃げ切りました。`;
+      s.winReason = `${s.maxRounds}手の記録を埋めて逃げ切りました。`;
       return;
     }
     const chaserIdx = s.players.map((_, i) => i).filter((i) => s.players[i].role === 'chaser');
@@ -137,6 +161,7 @@ function settle(s: GameState, board: Board): void {
 }
 
 export function isLegal(state: GameState, board: Board, move: Move): boolean {
+  if (move.double && !canDouble(state)) return false;
   return legalMoves(state, board, state.turn).some((m) => m.to === move.to && m.mode === move.mode);
 }
 
@@ -149,12 +174,24 @@ export function applyMove(state: GameState, board: Board, move: Move): GameState
   p.tickets[move.mode] -= 1;
   p.pos = move.to;
   if (p.role === 'fugitive') {
-    const reveal = s.revealRounds.includes(s.round);
-    s.log.push({ round: s.round, mode: move.mode, revealedPos: reveal ? move.to : null });
+    const secondLeg = state.pendingDouble;
+    const step = s.log.length + 1; // 手数。公開は手数で決まる
+    const reveal = s.revealRounds.includes(step);
+    s.log.push({ round: step, turn: s.round, mode: move.mode, revealedPos: reveal ? move.to : null, double: secondLeg || !!move.double });
     s.fugitiveTrail.push(move.to);
-    if (reveal) s.lastReveal = { round: s.round, pos: move.to };
+    if (reveal) s.lastReveal = { round: step, pos: move.to };
+    if (move.double) {
+      // 2×カード: 1手目。手番は逃走者のまま、続けてもう1手動く
+      p.doubleCards -= 1;
+      s.pendingDouble = true;
+      settle(s, board);
+      return s;
+    }
+    s.pendingDouble = false;
   } else {
     s.chaserMoves.push({ round: s.round, player: s.turn, to: move.to, mode: move.mode });
+    // 原作のルール: 追跡者が使ったチケットは逃走者に渡る
+    if (TRANSFER_TICKETS && move.mode !== 'black') s.players[0].tickets[move.mode] += 1;
     if (move.to === s.players[0].pos) {
       s.winner = 'chaser';
       s.winReason = `${p.name}が逃走者を捕まえました。`;
@@ -166,28 +203,25 @@ export function applyMove(state: GameState, board: Board, move: Move): GameState
   return s;
 }
 
-/** 他プレイヤーに見せてよい状態。逃走者の位置・チケット・軌跡を消す。 */
+/** 他プレイヤーに見せてよい状態。逃走者の位置・チケット(ブラック含む)・2×カードの残り・軌跡を消す。 */
 export function publicState(state: GameState): GameState {
   const s = structuredClone(state);
   s.players[0].pos = -1;
-  s.players[0].tickets = { taxi: -1, bus: -1, metro: -1 };
+  s.players[0].tickets = { taxi: -1, bus: -1, metro: -1, black: -1 };
+  s.players[0].doubleCards = -1;
   s.fugitiveTrail = [];
   return s;
 }
 
 /** 公開ログから数えた、逃走者が使った手段の回数。 */
 export function usedByFugitive(state: GameState): Tickets {
-  const t: Tickets = { taxi: 0, bus: 0, metro: 0 };
+  const t: Tickets = { taxi: 0, bus: 0, metro: 0, black: 0 };
   for (const e of state.log) t[e.mode] += 1;
   return t;
 }
 
-export function isRevealRound(state: GameState, round: number): boolean {
-  return state.revealRounds.includes(round);
-}
-
 export function nextRevealRound(state: GameState): number | null {
-  return state.revealRounds.find((r) => r >= state.round) ?? null;
+  return state.revealRounds.find((r) => r > state.log.length) ?? null;
 }
 
 export { MODES };
