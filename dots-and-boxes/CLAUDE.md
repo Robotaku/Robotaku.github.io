@@ -1,0 +1,9 @@
+# ドット&ボックス (dots-and-boxes)
+- 起動: `npm install` → `npm run dev`(ビルド: `npm run build`、型検査: `npm run typecheck`)
+- テスト: `npm test`(Vitest)。ルール・Botは `src/game/` の純粋関数で、UIから独立
+- ルール: 隣り合う点に線を1本引く。四角の4辺目を引いたらその四角を得て、もう1本引ける
+- 取れなければ次の席へ。全線が引かれたら終了、四角が最多の人が勝ち(同数・同率首位は引き分け)
+- 盤面は点 3×3 / 4×4(標準) / 5×5。席は2〜6、人間1人以上+Botは任意数
+- 設定は localStorage に保存し、「もう一度遊ぶ」で同設定を1タップ再開
+- UI文言は日本語。外部ライブラリは増やさない(Vite/TypeScript/Vitestのみ)
+- Haikuに任せてよい: CSS・アニメ・テスト補助・README。ルール判定とBot AIは本体が書く

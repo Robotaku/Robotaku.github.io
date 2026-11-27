@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#2f5bea"/>
+  <!-- 取られた四角(左上) -->
+  <rect x="124" y="124" width="132" height="132" fill="#E69F00"/>
+  <!-- 線 -->
+  <g stroke="#ffffff" stroke-width="22" stroke-linecap="round">
+    <line x1="124" y1="124" x2="388" y2="124"/>
+    <line x1="124" y1="124" x2="124" y2="256"/>
+    <line x1="124" y1="256" x2="256" y2="256"/>
+    <line x1="256" y1="124" x2="256" y2="256"/>
+    <line x1="256" y1="256" x2="388" y2="256"/>
+    <line x1="388" y1="124" x2="388" y2="256"/>
+  </g>
+  <!-- 点 -->
+  <g fill="#1d2433" stroke="#ffffff" stroke-width="6">
+    <circle cx="124" cy="124" r="22"/><circle cx="256" cy="124" r="22"/><circle cx="388" cy="124" r="22"/>
+    <circle cx="124" cy="256" r="22"/><circle cx="256" cy="256" r="22"/><circle cx="388" cy="256" r="22"/>
+    <circle cx="124" cy="388" r="22"/><circle cx="256" cy="388" r="22"/><circle cx="388" cy="388" r="22"/>
+  </g>
+</svg>
