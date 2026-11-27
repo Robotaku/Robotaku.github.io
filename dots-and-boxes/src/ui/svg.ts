@@ -103,6 +103,8 @@ export function boardSvg(state: GameState, opts: BoardOptions): SVGSVGElement {
       hit.style.strokeLinecap = 'butt';
       svg.append(hit);
     }
+    // iOS Safari は、カーソルがpointerでない要素のタップでclickを出さないことがあるため指定しておく
+    svg.style.cursor = 'pointer';
     svg.addEventListener('click', (ev) => {
       const ctm = svg.getScreenCTM();
       if (!ctm) return;
