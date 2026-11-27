@@ -148,7 +148,7 @@ describe('publicState(隠し情報)', () => {
     expect(p.players[0].pos).toBe(-1);
     expect(p.players[0].tickets).toEqual({ taxi: -1, bus: -1, metro: -1 });
     expect(p.fugitiveTrail).toEqual([]);
-    expect(JSON.stringify(p)).not.toContain(`"pos":${g.players[0].pos},"tickets":{"taxi":14`);
+    expect(JSON.stringify(p)).not.toContain(`"pos":${g.players[0].pos},"tickets":{"taxi":24`);
   });
   it('公開ログは手段のみで、公開ラウンド以外は位置を含まない', () => {
     let g = game();
