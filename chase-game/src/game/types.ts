@@ -1,3 +1,10 @@
+/**
+ * ゲーム全体で使う型の定義。まずここを読むと、データの形が分かる。
+ *
+ *  Board     … 盤面(駅・路線・開始位置)。board.ts に実データがある。
+ *  GameState … 進行中のゲームの全状態。rules.ts の関数は、これを受け取って新しい状態を返す。
+ *              「秘密」と書かれた項目は、publicState() で消してから他人に見せる。
+ */
 export type Mode = 'taxi' | 'bus' | 'metro';
 export const MODES: Mode[] = ['taxi', 'bus', 'metro'];
 export const MODE_LABEL: Record<Mode, string> = { taxi: 'タクシー', bus: 'バス', metro: '地下鉄' };

@@ -1,3 +1,7 @@
+/**
+ * 盤面データ(駅50個・タクシー/バス/地下鉄の路線・開始位置)。
+ * 座標は SVG の viewBox 1000x700 上の位置。駅の追加・変更は tests/board.test.ts で整合性を確認できる。
+ */
 import type { Board, Station, Edge } from './types';
 
 const stations: Station[] = [

@@ -1,3 +1,12 @@
+/**
+ * Bot(CPU)の思考。UIに依存しない純粋な関数。
+ *
+ *   chooseMove              … 手番のBotが指す手を返す入口
+ *   fugitiveMove            … 逃走者Bot: 追跡者から遠く、捕まらない駅へ
+ *   chaserMove              … 追跡者Bot: 逃走者がいそうな駅の集合に近づく(公開情報のみ使用)
+ *   possibleFugitiveStations … 公開情報だけから「逃走者がいるかもしれない駅」を計算
+ *   distanceMatrix          … 駅同士の最短距離(BFS)
+ */
 import type { Board, GameState, Move, Mode } from './types';
 import { adjacency, legalMoves, publicState } from './rules';
 import { type Rng, pick } from './rng';

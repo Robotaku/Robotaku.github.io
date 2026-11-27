@@ -1,13 +1,17 @@
+/**
+ * ゲームのルール(UIに依存しない純粋な関数)。
+ *
+ *   createGame   … 席の設定から最初の状態を作る
+ *   legalMoves   … いま指せる手の一覧
+ *   applyMove    … 手を適用して「新しい状態」を返す(元の状態は書き換えない)
+ *   publicState  … 他の人に見せてよい状態(逃走者の位置・チケット・軌跡を消す)
+ *
+ * 勝敗判定は settle() にまとめてある。数値設定は config.ts。
+ */
 import type { Board, GameState, Move, Mode, Player, SeatConfig, Tickets } from './types';
 import { MODES } from './types';
+import { CHASER_TICKETS, FUGITIVE_TICKETS, MAX_ROUNDS, MAX_SEATS, MIN_SEATS, REVEAL_ROUNDS } from './config';
 import { type Rng, shuffle, pick } from './rng';
-
-export const MAX_ROUNDS = 24;
-export const REVEAL_ROUNDS = [3, 8, 13, 18, 24];
-export const FUGITIVE_TICKETS: Tickets = { taxi: 24, bus: 9, metro: 6 };
-export const CHASER_TICKETS: Tickets = { taxi: 24, bus: 8, metro: 4 };
-export const MIN_SEATS = 2;
-export const MAX_SEATS = 8; // 逃走者1 + 追跡者7
 
 export interface Neighbor { to: number; mode: Mode }
 

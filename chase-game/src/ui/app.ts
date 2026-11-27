@@ -1,92 +1,27 @@
+/**
+ * アプリの進行制御(コントローラ)。
+ *
+ *   startGame → proceed → (Botなら) botStep / (人間なら) 中継画面 → 盤面 → 手を選ぶ → commit → proceed …
+ *
+ * ・ゲームのルールは game/rules.ts、Botの思考は game/bot.ts にあり、ここでは呼ぶだけ。
+ * ・画面のHTMLは screens/*.ts が作る。ここでは「今どの画面を出すか」を決めて描画する。
+ * ・隠し情報を守る要は proceed(): 人間の手番が替わるたびに必ず中継画面を挟む。
+ */
 import { BOARD } from '../game/board';
-import { chooseMove, possibleFugitiveStations } from '../game/bot';
-import { applyMove, createGame, legalMoves, publicState, validateSeats, MAX_SEATS, MIN_SEATS } from '../game/rules';
-import { MODE_LABEL, MODES } from '../game/types';
+import { chooseMove } from '../game/bot';
+import { MAX_SEATS, MIN_SEATS } from '../game/config';
+import { applyMove, createGame, legalMoves, validateSeats } from '../game/rules';
+import { MODE_LABEL } from '../game/types';
 import type { Difficulty, GameState, Mode, Role, SeatConfig } from '../game/types';
-import { CHASER_COLORS, renderBoardSvg } from './boardView';
-
-type Screen = 'setup' | 'handoff' | 'play' | 'result';
-
-interface Ui {
-  screen: Screen;
-  seats: SeatConfig[];
-  debug: boolean;
-  hint: boolean;
-  game: GameState | null;
-  holder: number | null; // 端末を今持っている人間のプレイヤー番号
-  selected: number | null;
-  feed: string[];
-  zoom: number;
-  showRules: boolean;
-  thinking: boolean;
-  centerOn: number | null;
-}
-
-const BOT_DELAY = 800;
-const SHORT: Record<Mode, string> = { taxi: 'タ', bus: 'バ', metro: '地' };
-
-const RULES_HTML = `
-<h3>勝ち負け</h3>
-<ul>
-  <li><b>追跡者の勝ち</b>: 追跡者のだれかが、逃走者と同じ駅に止まったら勝ちです。</li>
-  <li><b>逃走者の勝ち</b>: 24ラウンド逃げ切るか、追跡者が全員動けなくなる(チケット切れ・行き場なし)と勝ちです。</li>
-  <li>逃走者が動ける駅・チケットを失ったときは、追跡者の勝ちです。</li>
-</ul>
-<h3>手番</h3>
-<ul>
-  <li>1ラウンドごとに「逃走者 → 追跡者1 → 追跡者2 …」の順に1回ずつ移動します。</li>
-  <li>移動先は、いま立っている駅から線でつながった隣の駅です。</li>
-  <li>追跡者がいる駅には、逃走者も他の追跡者も入れません。</li>
-  <li>動ける手がない追跡者は、自動でパスします。</li>
-</ul>
-<h3>移動手段とチケット</h3>
-<ul>
-  <li><span class="chip taxi">タクシー</span> 黄色い線。ほぼ全駅で使えます。</li>
-  <li><span class="chip bus">バス</span> 緑の線。駅の下に緑の■がある駅で使えます。</li>
-  <li><span class="chip metro">地下鉄</span> 赤い線。駅の下に赤い■がある駅で使え、遠くへ一気に移動できます。</li>
-  <li>手段ごとにチケットの枚数が決まっています。使うと1枚減り、0枚の手段は使えません。</li>
-  <li>逃走者: タクシー24・バス9・地下鉄6 / 追跡者: タクシー24・バス8・地下鉄4(1人あたり)</li>
-</ul>
-<h3>見えるもの・見えないもの</h3>
-<ul>
-  <li>逃走者の位置は追跡者には見えません。見えるのは「使った移動手段」だけです。</li>
-  <li><b>3・8・13・18・24ラウンド</b>だけ、移動後の位置が公開されます(紫のひし形)。</li>
-  <li>逃走者は最初、★印の5駅のどこかから始まります。</li>
-  <li>追跡者の位置とチケット残りは全員に公開されています。</li>
-</ul>
-<h3>端末の受け渡し</h3>
-<ul>
-  <li>人間の手番が変わるたびに「端末を○○さんに渡してください」の画面が出ます。渡されたら、ボタンを押すまで盤面は見えません。</li>
-</ul>`;
-
-const ui: Ui = {
-  screen: 'setup',
-  seats: [
-    { name: 'プレイヤー1', isBot: false, role: 'fugitive', difficulty: 'normal' },
-    { name: 'プレイヤー2', isBot: false, role: 'chaser', difficulty: 'normal' },
-    { name: 'Bot1', isBot: true, role: 'chaser', difficulty: 'normal' },
-  ],
-  debug: false,
-  hint: false,
-  game: null,
-  holder: null,
-  selected: null,
-  feed: [],
-  zoom: typeof window !== 'undefined' && window.innerWidth < 700 ? 2 : 1,
-  showRules: false,
-  thinking: false,
-  centerOn: null,
-};
+import { dispName } from './format';
+import { handoffHtml } from './screens/handoffScreen';
+import { playHtml } from './screens/playScreen';
+import { resultHtml } from './screens/resultScreen';
+import { setupHtml } from './screens/setupScreen';
+import { BOT_DELAY, ui } from './state';
 
 let root: HTMLElement;
 let timer: number | undefined;
-
-const esc = (s: string): string =>
-  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-
-const dispName = (g: GameState, i: number): string => `${esc(g.players[i].name)}${g.players[i].isBot ? '(Bot)' : ''}`;
-const roleLabel = (r: Role): string => (r === 'fugitive' ? '逃走者' : '追跡者');
-const chaserColor = (i: number): string => CHASER_COLORS[(i - 1) % CHASER_COLORS.length];
 
 export function startApp(el: HTMLElement): void {
   root = el;
@@ -316,189 +251,4 @@ function render(): void {
       w.scrollTop = keep.t;
     }
   }
-}
-
-function rulesModal(): string {
-  if (!ui.showRules) return '';
-  return `<div class="modal"><div class="modal-body"><h2>ルール</h2>${RULES_HTML}<button class="btn primary" data-act="rules">閉じる</button></div></div>`;
-}
-
-function setupHtml(): string {
-  const errors = validateSeats(ui.seats);
-  const seatRows = ui.seats
-    .map(
-      (s, i) => `
-    <div class="seat">
-      <div class="seat-no">席${i + 1}</div>
-      <input class="seat-name" type="text" maxlength="12" value="${esc(s.name)}" data-field="name" data-i="${i}" aria-label="席${i + 1}の名前" />
-      <select data-field="kind" data-i="${i}" aria-label="人間かBotか">
-        <option value="human"${s.isBot ? '' : ' selected'}>人間</option>
-        <option value="bot"${s.isBot ? ' selected' : ''}>Bot</option>
-      </select>
-      <select data-field="role" data-i="${i}" aria-label="役割">
-        <option value="fugitive"${s.role === 'fugitive' ? ' selected' : ''}>逃走者</option>
-        <option value="chaser"${s.role === 'chaser' ? ' selected' : ''}>追跡者</option>
-      </select>
-      ${
-        s.isBot
-          ? `<select data-field="difficulty" data-i="${i}" aria-label="難易度">
-        <option value="easy"${s.difficulty === 'easy' ? ' selected' : ''}>かんたん</option>
-        <option value="normal"${s.difficulty === 'normal' ? ' selected' : ''}>ふつう</option>
-      </select>`
-          : '<span class="seat-spacer"></span>'
-      }
-      <button class="btn small danger" data-act="del-seat" data-i="${i}" ${ui.seats.length <= MIN_SEATS ? 'disabled' : ''} aria-label="席${i + 1}を削除">削除</button>
-    </div>`,
-    )
-    .join('');
-  return `
-  <main class="screen setup">
-    <h1>追跡ゲーム</h1>
-    <p class="lead">1台の端末を交代で使う、逃走者 VS 追跡者のボードゲームです。逃走者の位置は追跡者に見えません。</p>
-    <section class="card">
-      <h2>参加席</h2>
-      <div class="presets">
-        <span>かんたん設定:</span>
-        <button class="btn small" data-act="preset" data-p="h2">人間2</button>
-        <button class="btn small" data-act="preset" data-p="h2b1">人間2+Bot1</button>
-        <button class="btn small" data-act="preset" data-p="h2b2">人間2+Bot2</button>
-        <button class="btn small" data-act="preset" data-p="h1b3">人間1+Bot3</button>
-      </div>
-      <div class="seats">${seatRows}</div>
-      <div class="row">
-        <button class="btn" data-act="add-human" ${ui.seats.length >= MAX_SEATS ? 'disabled' : ''}>＋人間を追加</button>
-        <button class="btn" data-act="add-bot" ${ui.seats.length >= MAX_SEATS ? 'disabled' : ''}>＋Botを追加</button>
-      </div>
-      ${errors.length ? `<ul class="errors">${errors.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-      <label class="check"><input type="checkbox" data-field="debug" ${ui.debug ? 'checked' : ''}/> <span>開発用デバッグ表示(逃走者の位置を画面とコンソールに出す。<b>遊ぶときはオフ</b>)</span></label>
-    </section>
-    <div class="row center">
-      <button class="btn primary big" data-act="start" ${errors.length ? 'disabled' : ''}>ゲーム開始</button>
-      <button class="btn" data-act="rules">ルールを見る</button>
-    </div>
-    <p class="note">逃走者は1席、追跡者は1席以上、人間は最低1人。席は${MIN_SEATS}〜${MAX_SEATS}席。</p>
-    ${rulesModal()}
-  </main>`;
-}
-
-function handoffHtml(): string {
-  const g = ui.game!;
-  const p = g.players[g.turn];
-  return `
-  <main class="screen handoff">
-    <div class="handoff-box">
-      <p class="handoff-small">ラウンド ${g.round} / ${g.maxRounds}</p>
-      <h1>端末を<br><span class="who">${esc(p.name)}</span> さん<br>に渡してください</h1>
-      <p class="handoff-role">あなたは<b>${roleLabel(p.role)}</b>です。<br>他の人は画面を見ないでください。</p>
-      <button class="btn primary big" data-act="handoff-ok">${esc(p.name)}です。盤面を見る</button>
-    </div>
-  </main>`;
-}
-
-function chipsHtml(t: Record<Mode, number>): string {
-  return MODES.map((m) => `<span class="chip ${m}">${MODE_LABEL[m]} ${t[m]}</span>`).join('');
-}
-
-function logHtml(g: GameState): string {
-  const cells: string[] = [];
-  for (let r = 1; r <= g.maxRounds; r++) {
-    const e = g.log[r - 1];
-    const reveal = g.revealRounds.includes(r);
-    const body = e ? `${SHORT[e.mode]}${e.revealedPos !== null ? `<br>駅${e.revealedPos}` : ''}` : reveal ? '公開' : '・';
-    cells.push(
-      `<div class="log-cell ${e ? `used ${e.mode}` : 'future'}${reveal ? ' reveal' : ''}${r === g.round ? ' now' : ''}"><span class="log-r">${r}</span><span class="log-body">${body}</span></div>`,
-    );
-  }
-  return `<div class="log">${cells.join('')}</div>`;
-}
-
-function playersHtml(g: GameState, secret: boolean): string {
-  return g.players
-    .map((p, i) => {
-      const cur = i === g.turn ? ' current' : '';
-      if (p.role === 'fugitive') {
-        return `<div class="pl fugitive${cur}"><b>逃走者 ${dispName(g, i)}</b>${
-          secret ? `<span> 現在地: 駅${p.pos}</span><div>${chipsHtml(p.tickets)}</div>` : '<span> 位置・チケット: 非公開</span>'
-        }</div>`;
-      }
-      return `<div class="pl chaser${cur}"><span class="dot" style="background:${chaserColor(i)}">${i}</span><b>${dispName(g, i)}</b><span> 駅${p.pos}</span><div>${chipsHtml(p.tickets)}</div></div>`;
-    })
-    .join('');
-}
-
-function playHtml(): string {
-  const g = ui.game!;
-  const pub = publicState(g);
-  const cur = g.players[g.turn];
-  const myTurn = !cur.isBot && ui.holder === g.turn && !ui.thinking;
-  const secret = myTurn && cur.role === 'fugitive';
-  const moves = myTurn ? legalMoves(g, BOARD, g.turn) : [];
-  const targets = new Set(moves.map((m) => m.to));
-  const candidates = ui.hint && myTurn && cur.role === 'chaser' ? possibleFugitiveStations(pub, BOARD) : undefined;
-  const svg = renderBoardSvg({
-    board: BOARD,
-    pub,
-    secretFugitivePos: secret ? cur.pos : null,
-    debugPos: ui.debug ? g.players[0].pos : null,
-    targets,
-    selected: ui.selected,
-    candidates,
-  });
-  let action: string;
-  if (ui.thinking) {
-    action = `<div class="action wait">${dispName(g, g.turn)} が考えています…</div>`;
-  } else if (ui.selected !== null) {
-    const opts = moves.filter((m) => m.to === ui.selected);
-    action = `<div class="action"><div>駅${ui.selected}へ、どの手段で移動しますか?</div><div class="row">${opts
-      .map((m) => `<button class="btn mode ${m.mode}" data-act="mode" data-mode="${m.mode}">${MODE_LABEL[m.mode]}で移動<small>残り${cur.tickets[m.mode]}</small></button>`)
-      .join('')}<button class="btn" data-act="cancel">やめる</button></div></div>`;
-  } else {
-    action = `<div class="action"><b>${esc(cur.name)}さん(${roleLabel(cur.role)})の番です。</b> 光っている駅をタップして移動先を選びます。</div>`;
-  }
-  const nextReveal = g.revealRounds.find((r) => r >= g.round);
-  return `
-  <main class="screen play">
-    <header class="topbar">
-      <div class="round">ラウンド <b>${g.round}</b> / ${g.maxRounds}${nextReveal ? ` <small>(次の位置公開: R${nextReveal})</small>` : ''}</div>
-      <div class="tools">
-        ${myTurn && cur.role === 'chaser' ? `<button class="btn small${ui.hint ? ' on' : ''}" data-act="hint">推理ヒント${ui.hint ? 'ON' : 'OFF'}</button>` : ''}
-        <button class="btn small" data-act="zoom-out" aria-label="縮小">－</button>
-        <button class="btn small" data-act="zoom-in" aria-label="拡大">＋</button>
-        <button class="btn small" data-act="rules">ルール</button>
-      </div>
-    </header>
-    ${action}
-    <div class="board-wrap"><div class="board-inner" style="width:${ui.zoom * 100}%">${svg}</div></div>
-    <div class="legend"><span class="chip taxi">タクシー(黄)</span><span class="chip bus">バス(緑)</span><span class="chip metro">地下鉄(赤)</span><span class="chip">紫◇=最後の公開位置</span><span class="chip">★=逃走者の開始候補</span></div>
-    <section class="panel"><h2>逃走者の移動(公開情報)</h2>${logHtml(pub)}</section>
-    <section class="panel"><h2>プレイヤー</h2>${playersHtml(secret ? g : pub, secret)}</section>
-    <section class="panel"><h2>行動ログ</h2><ul class="feed">${ui.feed
-      .slice(-8)
-      .reverse()
-      .map((f) => `<li>${f}</li>`)
-      .join('')}</ul></section>
-    ${rulesModal()}
-  </main>`;
-}
-
-function resultHtml(): string {
-  const g = ui.game!;
-  const svg = renderBoardSvg({ board: BOARD, pub: g, secretFugitivePos: g.players[0].pos, trail: g.fugitiveTrail, targets: new Set(), selected: null });
-  const winner = g.winner === 'fugitive' ? '逃走者' : '追跡者';
-  return `
-  <main class="screen result">
-    <h1>${winner}の勝ち!</h1>
-    <p class="reason">${esc(g.winReason)}</p>
-    <p>逃走者: <b>${dispName(g, 0)}</b> / 追跡者: ${g.players
-      .slice(1)
-      .map((_, i) => `<b>${dispName(g, i + 1)}</b>`)
-      .join('、')}</p>
-    <section class="panel"><h2>逃走者の通った道(点線)</h2><div class="board-wrap"><div class="board-inner" style="width:${ui.zoom * 100}%">${svg}</div></div>
-    <p class="route">経路: ${g.fugitiveTrail.map((x) => `駅${x}`).join(' → ')}</p></section>
-    <section class="panel"><h2>行動ログ</h2><ul class="feed">${ui.feed.slice().reverse().map((f) => `<li>${f}</li>`).join('')}</ul></section>
-    <div class="row center">
-      <button class="btn primary big" data-act="again">同じ設定でもう一度</button>
-      <button class="btn" data-act="to-setup">設定に戻る</button>
-    </div>
-  </main>`;
 }

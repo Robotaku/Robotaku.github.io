@@ -90,23 +90,47 @@ npm run build    # 型チェックのあと dist/ に静的ファイルを出力
 - 追跡者Botも `publicState()` の結果だけを参照します。逃走者の本当の位置は見ません。
 - デバッグ表示(逃走者の位置を画面とコンソールに出す)は、トップ画面の設定で既定オフです。遊ぶときはオフのままにしてください。
 
-## ファイル構成
+## ファイル構成(どこを読めば何が分かるか)
 
 ```
-index.html            エントリHTML
-src/main.ts           起動処理
-src/style.css         スタイル
-src/game/
-  types.ts            型定義と移動手段のラベル
-  board.ts            盤面データ(駅・路線・開始位置)
-  rules.ts            席の検証、合法手、手の適用、勝敗、publicState
-  bot.ts              Botの思考(追跡者・逃走者)
-  rng.ts              乱数(シード付き)
-src/ui/
-  app.ts              画面の状態管理と手番の進行
-  boardView.ts        盤面のSVG描画
-tests/                Vitestのテスト(rules, bot, board, setup, hidden)
+index.html               ページ本体(中身は main.ts が組み立てる)
+src/main.ts              起動(ui/app.ts を呼ぶだけ)
+src/style.css            見た目(スマホ縦画面優先)
+
+src/game/                ← ゲームのルールとBot。画面(DOM)には一切触れない純粋な関数
+  types.ts               データの形(盤面・状態・手)。最初にここを読むと全体が分かる
+  config.ts              ルールの数値(ラウンド数・公開ラウンド・チケット枚数・席数)
+  board.ts               盤面データ(駅50個・路線・開始位置)
+  rules.ts               合法手・手の適用・勝敗判定・publicState(隠し情報を消す)
+  bot.ts                 Botの思考(逃走者Bot・追跡者Bot・距離計算・可能性のある駅)
+  rng.ts                 シード付き乱数
+
+src/ui/                  ← 画面。ゲームの状態を読んでHTMLを作る
+  app.ts                 進行制御(次に何の画面を出すか、Botの手番、クリック処理)
+  state.ts               画面の状態(どの画面か・設定中の席・進行中のゲーム)
+  format.ts              名前・チケット表示などの小さな部品
+  rulesText.ts           「ルール」ボタンの説明文
+  boardView.ts           盤面のSVGを作る(駒・路線・駅・ヒント)
+  boardBackground.ts     盤面の背景の簡易地図(川・公園など)
+  screens/
+    setupScreen.ts       トップ画面(席の設定)
+    handoffScreen.ts     端末受け渡しの中継画面(盤面を出さない)
+    playScreen.ts        対戦中の画面
+    resultScreen.ts      結果画面
+
+tests/                   Vitestの単体テスト
+  rules.test.ts          ルール・勝敗判定
+  bot.test.ts            Botの挙動(合法手・捕まる駅を避ける・位置に依存しない)
+  hidden.test.ts         隠し情報が描画に出ないこと
+  board.test.ts          盤面データの整合性(連結・重複なし など)
+  setup.test.ts          席の検証・乱数
 ```
+
+### 変更したいとき
+- **チケット枚数・ラウンド数・公開ラウンドを変える** → `src/game/config.ts`(画面のルール文 `ui/rulesText.ts` とこのREADMEの数字も直す)
+- **Botを強く/弱くする** → `src/game/bot.ts` の `fugitiveMove` / `chaserMove` の点数づけ
+- **盤面を変える** → `src/game/board.ts`(`npm test` で整合性を確認)
+- **見た目を変える** → `src/style.css`、盤面の絵は `src/ui/boardView.ts` と `boardBackground.ts`
 
 ## 技術
 
