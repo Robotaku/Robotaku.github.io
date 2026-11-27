@@ -23,13 +23,13 @@ export const FUGITIVE_TICKETS: Tickets = { taxi: 6, bus: 4, metro: 3, black: 0 }
 export const TRANSFER_TICKETS = true;
 
 /**
- * ブラックチケットの枚数。追跡者が少ないと逃走者が有利になりすぎるため、2人以下は1枚に絞る。
- * (原作は版によって「追跡者の人数分」「5枚」と違う)
+ * ブラックチケットの枚数。このアプリ独自の調整で、追跡者が2人以下なら1枚、3人以上なら人数分にしている。
+ * (Ravensburger版の標準ルールは5枚。Bot同士の対戦で、枚数が多いと少人数で逃走者が有利になりすぎたため絞った)
  */
 export function blackTicketsFor(chaserCount: number): number {
   return chaserCount <= 2 ? 1 : chaserCount;
 }
-/** 2×カードの枚数。2人以下は1枚(原作は2枚) */
+/** 2×カードの枚数。このアプリ独自の調整で、2人以下は1枚(Ravensburger版の標準ルールは2枚) */
 export function doubleCardsFor(chaserCount: number): number {
   return chaserCount <= 2 ? 1 : 2;
 }
