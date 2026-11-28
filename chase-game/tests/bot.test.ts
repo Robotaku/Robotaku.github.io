@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { BOARD } from '../src/game/board';
 import { applyMove, createGame, legalMoves, publicState, adjacency } from '../src/game/rules';
-import { chooseMove, distanceMatrix, possibleFugitiveStations } from '../src/game/bot';
+import { BASELINE_CHASER_TUNING, CHASER_TUNING, chaserMove, chooseMove, distanceMatrix, fugitiveMove, possibleFugitiveStations } from '../src/game/bot';
 import { mulberry32 } from '../src/game/rng';
 import type { GameState, SeatConfig, Difficulty } from '../src/game/types';
 
@@ -214,5 +214,71 @@ describe('追跡者Botは逃走者の秘密(位置・ブラック残数・2×残
       h.fugitiveTrail = [h.players[0].pos];
       expect(chooseMove(g, BOARD, mulberry32(99))).toEqual(chooseMove(h, BOARD, mulberry32(99)));
     }
+  });
+});
+
+// ---------------------------------------------------------------- 追跡者Botの質(往復・同点ランダム・手詰まり)
+
+describe('追跡者Botの質', () => {
+  /** 駅13で位置が公開された直後。追跡者1は隣の12、追跡者2は遠い47にいる。手番は追跡者2 */
+  const farChaserCase = () => {
+    const g = createGame(BOARD, [humanSeat('fugitive'), seat('chaser'), seat('chaser')], mulberry32(5));
+    g.chaserStart = [12, 47];
+    g.players[1].pos = 12;
+    g.players[2].pos = 47;
+    g.log = [1, 2, 3].map((r) => ({ round: r, turn: r, mode: 'taxi' as const, revealedPos: r === 3 ? 13 : null, double: false }));
+    g.lastReveal = { round: 3, pos: 13 };
+    g.round = 3;
+    g.turn = 2;
+    return publicState(g);
+  };
+
+  it('他の追跡者のほうが近くても、遠い追跡者は候補の駅(13)へ近づく手を選ぶ', () => {
+    const pub = farChaserCase();
+    const d = distanceMatrix(BOARD);
+    const before = d[47][13];
+    for (let seed = 1; seed <= 30; seed++) {
+      const m = chaserMove(pub, BOARD, mulberry32(seed));
+      expect(d[m.to][13]).toBeLessThan(before);
+    }
+  });
+  it('(原因の記録)改善前の評価だと、この局面で手が同点になり、乱数しだいで違う手を選ぶ', () => {
+    const pub = farChaserCase();
+    const picks = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      const m = chaserMove(pub, BOARD, mulberry32(seed), BASELINE_CHASER_TUNING);
+      picks.add(`${m.to}:${m.mode}`);
+    }
+    expect(picks.size).toBeGreaterThan(1);
+  });
+
+  const stats = (n: number, games: number, tuning: typeof CHASER_TUNING) => {
+    let moves = 0, backs = 0, passes = 0;
+    for (let s = 1; s <= games; s++) {
+      const rng = mulberry32(s * 7919 + n);
+      const seats: SeatConfig[] = [humanSeat('fugitive'), ...Array.from({ length: n }, () => seat('chaser'))];
+      let g = createGame(BOARD, seats, rng);
+      const hist = g.players.slice(1).map((p) => [p.pos]);
+      while (!g.winner) {
+        const mv = g.players[g.turn].role === 'fugitive' ? fugitiveMove(g, BOARD, rng) : chaserMove(publicState(g), BOARD, rng, tuning);
+        if (g.players[g.turn].role === 'chaser') {
+          const h = hist[g.turn - 1];
+          if (h.length >= 2 && mv.to === h[h.length - 2]) backs++;
+          h.push(mv.to);
+          moves++;
+        }
+        g = applyMove(g, BOARD, mv);
+      }
+      passes += g.passed.length;
+    }
+    return { backRate: backs / moves, passesPerGame: passes / games };
+  };
+
+  it('Bot同士の対戦で、改善前より、直前の駅への往復と手詰まりのパスが大きく減る', () => {
+    const before = stats(3, 40, BASELINE_CHASER_TUNING);
+    const after = stats(3, 40, CHASER_TUNING);
+    expect(after.backRate).toBeLessThan(before.backRate * 0.5); // 実測: 約21% → 約5%
+    expect(after.backRate).toBeLessThan(0.1);
+    expect(after.passesPerGame).toBeLessThan(before.passesPerGame * 0.6); // 実測: 約7回 → 約3回/試合
   });
 });

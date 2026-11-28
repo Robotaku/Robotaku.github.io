@@ -108,18 +108,43 @@ function argBest<T>(items: T[], score: (t: T) => number, rng: Rng): T {
   return pick(bests, rng);
 }
 
-/** 追跡者Bot: 公開情報のみ(publicState)から、可能性のある駅の集合に近づく手を選ぶ。 */
-export function chaserMove(pub: GameState, board: Board, rng: Rng): Move {
+/** 追跡者Botの調整値。0/false なら、対応する工夫を使わない(改善前の挙動) */
+export interface ChaserTuning {
+  /** 自分自身が候補の駅へ近づく項の重み。0だと「他の追跡者のほうが近い」とき動きが同点になりランダムに動く */
+  pull: number;
+  /** 直前にいた駅へ戻る手の減点(往復の抑制) */
+  backtrack: number;
+  /** 動けなくなる(使えるチケットで出られない)駅への移動を避ける */
+  mobility: boolean;
+}
+
+/** 改善前の挙動(比較用) */
+export const BASELINE_CHASER_TUNING: ChaserTuning = { pull: 0, backtrack: 0, mobility: false };
+/** 標準(ふつう)の調整値。計測の根拠は README の「追跡者Botの改善」を参照 */
+export const CHASER_TUNING: ChaserTuning = { pull: 0.25, backtrack: 0.4, mobility: true };
+
+/**
+ * 追跡者Bot: 公開情報のみ(publicState)から、可能性のある駅の集合に近づく手を選ぶ。
+ * 評価(小さいほど良い): 候補の各駅への「追跡者全員のうち最短の距離」の平均 + 調整項(ChaserTuning)。
+ */
+export function chaserMove(pub: GameState, board: Board, rng: Rng, tuning: ChaserTuning = CHASER_TUNING): Move {
   const idx = pub.turn;
   const me = pub.players[idx];
   const legal = legalMoves(pub, board, idx);
   const easy = me.difficulty === 'easy';
   if (easy && rng() < 0.3) return pick(legal, rng);
   const dist = distanceMatrix(board);
+  const adj = adjacency(board);
   const S = possibleFugitiveStations(pub, board);
   const others = pub.players.filter((p, i) => i !== idx && p.role === 'chaser').map((p) => p.pos);
+
+  // 自分の直前の駅(往復の検出用)
+  const hist = [pub.chaserStart[idx - 1], ...pub.chaserMoves.filter((m) => m.player === idx).map((m) => m.to)];
+  const prev = hist.length >= 2 ? hist[hist.length - 2] : -1;
+
   const score = (m: Move): number => {
     const pos = [...others, m.to];
+    // 候補の各駅へ「追跡者全員のうち最も近い人」の距離。平均が小さいほど、全員で網を張れている
     let sum = 0;
     for (const s of S) {
       let best = Infinity;
@@ -127,8 +152,24 @@ export function chaserMove(pub: GameState, board: Board, rng: Rng): Move {
       sum += best;
     }
     let cost = sum / S.length;
+    // 自分自身の距離も少し見る。これが無いと「他の追跡者のほうが近い」ときに自分はどこへ動いても
+    // 同点になり、ランダムに動いてしまう(往復・隅へ行ってチケット切れ、の原因になっていた)
+    if (tuning.pull > 0) {
+      let own = 0;
+      for (const s of S) own += dist[m.to][s];
+      cost += (tuning.pull * own) / S.length;
+    }
     if (S.includes(m.to)) cost -= 0.5;
     cost += ticketCost(me.tickets[m.mode]);
+    if (m.to === prev) cost += tuning.backtrack;
+    if (tuning.mobility) {
+      // この手のあと、残りのチケットで次に動ける駅の数。0なら次の手番はパス(手詰まり)
+      const left = { ...me.tickets, [m.mode]: me.tickets[m.mode] - 1 };
+      const exits = new Set(
+        adj[m.to].filter((n) => n.mode !== 'ferry' && left[n.mode] > 0 && !others.includes(n.to)).map((n) => n.to),
+      ).size;
+      cost += exits === 0 ? 6 : exits === 1 ? 1.5 : 0;
+    }
     if (easy) cost += rng() * 1.5;
     return -cost;
   };

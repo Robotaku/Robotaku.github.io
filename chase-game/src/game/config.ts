@@ -12,10 +12,11 @@ export const REVEAL_ROUNDS = [3, 8, 13, 18, 24];
 
 /**
  * 追跡者1人あたりの最初のチケット。原作は タクシー10・バス8・地下鉄4。
- * タクシーだけ18にしている: この盤面は34/50駅がタクシー専用で、10枚だと追跡者が券切れで動けなくなり、
- * 追跡ではなく「追跡者が全員動けない」で終わる対戦が5〜8割になる(Bot同士の対戦で計測)。
+ * タクシーだけ12にしている: この盤面は34/50駅がタクシー専用で、原作の10枚だと追跡者2人のとき
+ * 約半数の対戦が「追跡者が全員動けない」で終わる(Bot同士の対戦で計測)。12枚なら約1割に収まる。
+ * (追跡者Botが無駄に往復していた頃は、18枚にしないと券切れが続出していた)
  */
-export const CHASER_TICKETS: Tickets = { taxi: 18, bus: 8, metro: 4, black: 0 };
+export const CHASER_TICKETS: Tickets = { taxi: 12, bus: 8, metro: 4, black: 0 };
 /** 逃走者の最初のチケット(ブラックは人数で決まるので blackTicketsFor を使う) */
 export const FUGITIVE_TICKETS: Tickets = { taxi: 6, bus: 4, metro: 3, black: 0 };
 
